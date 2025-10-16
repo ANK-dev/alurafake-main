@@ -1,5 +1,7 @@
 package br.com.alura.AluraFake.course;
 
+import br.com.alura.AluraFake.task.TaskRepository;
+import br.com.alura.AluraFake.task.dto.TaskListItemDTO;
 import br.com.alura.AluraFake.user.*;
 import br.com.alura.AluraFake.util.ErrorItemDTO;
 import jakarta.validation.Valid;
@@ -9,17 +11,20 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @RestController
 public class CourseController {
 
     private final CourseRepository courseRepository;
     private final UserRepository userRepository;
+    private final TaskRepository taskRepository;
 
     @Autowired
-    public CourseController(CourseRepository courseRepository, UserRepository userRepository){
+    public CourseController(CourseRepository courseRepository, UserRepository userRepository, TaskRepository taskRepository){
         this.courseRepository = courseRepository;
         this.userRepository = userRepository;
+        this.taskRepository = taskRepository;
     }
 
     @Transactional
@@ -53,6 +58,22 @@ public class CourseController {
     @PostMapping("/course/{id}/publish")
     public ResponseEntity createCourse(@PathVariable("id") Long id) {
         return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/course/{id}/tasks")
+    public ResponseEntity<List<TaskListItemDTO>> listCourseTasks(@PathVariable("id") Long id) {
+        Optional<Course> course = courseRepository.findById(id);
+        if (course.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        List<TaskListItemDTO> tasks = taskRepository
+                .findByCourseIdOrderByOrderIndexAsc(id)
+                .stream()
+                .map(TaskListItemDTO::new)
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(tasks);
     }
 
 }
