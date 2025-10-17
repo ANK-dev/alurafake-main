@@ -10,6 +10,7 @@ import org.springframework.http.*;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -57,6 +58,31 @@ public class CourseController {
 
     @PostMapping("/course/{id}/publish")
     public ResponseEntity createCourse(@PathVariable("id") Long id) {
+        Optional<Course> courseOptional = courseRepository.findById(id);
+        if (courseOptional.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        Course course = courseOptional.get();
+
+        List<TaskListItemDTO> tasks = taskRepository
+                .findByCourseIdOrderByOrderIndexAsc(id)
+                .stream()
+                .map(TaskListItemDTO::new)
+                .collect(Collectors.toList());
+
+        boolean consecutive = tasks.getLast().getOrder() - tasks.getFirst().getOrder() == tasks.size() - 1;
+        if (!consecutive) {
+            return ResponseEntity.badRequest().body(new ErrorItemDTO("order", "Order is not consecutive"));
+        }
+
+        if (!Status.BUILDING.equals(course.getStatus())) {
+            return ResponseEntity.badRequest().body(new ErrorItemDTO("status", "Status is not BUILDING"));
+        }
+
+        course.setStatus(Status.PUBLISHED);
+        course.setPublishedAt(LocalDateTime.now());
+
+        courseRepository.save(course);
         return ResponseEntity.ok().build();
     }
 
