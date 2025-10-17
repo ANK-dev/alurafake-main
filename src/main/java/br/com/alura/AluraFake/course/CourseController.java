@@ -1,6 +1,7 @@
 package br.com.alura.AluraFake.course;
 
 import br.com.alura.AluraFake.task.TaskRepository;
+import br.com.alura.AluraFake.task.Type;
 import br.com.alura.AluraFake.task.dto.TaskListItemDTO;
 import br.com.alura.AluraFake.user.*;
 import br.com.alura.AluraFake.util.ErrorItemDTO;
@@ -69,6 +70,21 @@ public class CourseController {
                 .stream()
                 .map(TaskListItemDTO::new)
                 .collect(Collectors.toList());
+
+        if (tasks.isEmpty()) {
+            return ResponseEntity.badRequest().body(new ErrorItemDTO("tasks", "No tasks are present"));
+        }
+
+        if (tasks.size() < 3) {
+            return ResponseEntity.badRequest().body(new ErrorItemDTO("tasks", "At least 3 tasks are required"));
+        }
+
+        Set<Type> requiredTypes = Set.of(Type.values());
+        Set<Type> foundTypes = tasks.stream().map(TaskListItemDTO::getType).collect(Collectors.toSet());
+
+        if (!foundTypes.containsAll(requiredTypes)) {
+            return ResponseEntity.badRequest().body(new ErrorItemDTO("tasks", "At least 1 task of each type is required"));
+        }
 
         boolean consecutive = tasks.getLast().getOrder() - tasks.getFirst().getOrder() == tasks.size() - 1;
         if (!consecutive) {
