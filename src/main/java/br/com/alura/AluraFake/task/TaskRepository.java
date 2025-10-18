@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import java.util.List;
 
 public interface TaskRepository extends JpaRepository<Task, Long> {
+
     boolean existsByCourseAndStatement(Course course, String statement);
 
     int countByCourseId(Long courseId);
