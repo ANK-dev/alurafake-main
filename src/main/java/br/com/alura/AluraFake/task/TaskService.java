@@ -26,7 +26,7 @@ public class TaskService {
 
     @Transactional
     public <T extends NewTaskDTO> ResponseEntity<?> createNewTask(T dto, Type type) {
-        ResponseEntity<?> fieldsNullErr = validateFieldsNotNull(dto, type);
+        ResponseEntity<?> fieldsNullErr = validateFieldsNotNullOrEmpty(dto, type);
         if (fieldsNullErr != null) {
             return fieldsNullErr;
         }
@@ -84,13 +84,13 @@ public class TaskService {
     // Validation
     // ----------
 
-    private <T extends NewTaskDTO> ResponseEntity<?> validateFieldsNotNull(T dto, Type type) {
+    private <T extends NewTaskDTO> ResponseEntity<?> validateFieldsNotNullOrEmpty(T dto, Type type) {
         List<ErrorItemDTO> nullFields = new ArrayList<>();
 
         if (dto.getCourseId() == null) {
             nullFields.add(new ErrorItemDTO("courseId", "courseId is required"));
         }
-        if (dto.getStatement() == null) {
+        if (dto.getStatement() == null || dto.getStatement().isEmpty()) {
             nullFields.add(new ErrorItemDTO("statement", "statement is required"));
         }
         if (dto.getOptions() == null && (Type.SINGLE_CHOICE.equals(type) || Type.MULTIPLE_CHOICE.equals(type))) {
@@ -114,7 +114,7 @@ public class TaskService {
     private ResponseEntity<?> validateCourseIsBuilding(Course course) {
         if (!Status.BUILDING.equals(course.getStatus())) {
             return ResponseEntity.badRequest().body(new ErrorItemDTO(
-                    "courseId",
+                    "status",
                     "Course must be in BUILDING status to receive tasks"
             ));
         }

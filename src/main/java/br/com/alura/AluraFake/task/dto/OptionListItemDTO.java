@@ -2,7 +2,9 @@ package br.com.alura.AluraFake.task.dto;
 
 import br.com.alura.AluraFake.task.TaskOption;
 
-public class OptionListItemDTO {
+import java.io.Serializable;
+
+public class OptionListItemDTO implements Serializable {
 
     private Long id;
     private String option;

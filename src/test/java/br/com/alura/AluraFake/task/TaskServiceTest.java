@@ -10,6 +10,8 @@ import br.com.alura.AluraFake.task.dto.OptionDTO;
 import br.com.alura.AluraFake.user.Role;
 import br.com.alura.AluraFake.user.User;
 import br.com.alura.AluraFake.util.ErrorItemDTO;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -18,9 +20,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -37,634 +38,1096 @@ class TaskServiceTest {
     @InjectMocks
     private TaskService taskService;
 
-    // Helpers
-    private User instructor() {
-        return new User("Paulo", "paulo@alura.com.br", Role.INSTRUCTOR);
+    private NewOpenTextDTO sampleOpenTextDTO;
+    private NewSingleChoiceDTO sampleSingleChoiceDTO;
+    private NewMultipleChoiceDTO sampleMultipleChoiceDTO;
+    private Course sampleCourse;
+
+    @BeforeEach
+    void setup() {
+        String statement = "O que aprendemos hoje?";
+        Long courseId = 1L;
+        Integer order = 1;
+        List<OptionDTO> singleChoiceOptions = List.of(
+                new OptionDTO("Java", true),
+                new OptionDTO("Python", false)
+        );
+        List<OptionDTO> multipleChoiceOptions = List.of(
+                new OptionDTO("Java", true),
+                new OptionDTO("Spring", true),
+                new OptionDTO("Ruby", false)
+        );
+
+        sampleOpenTextDTO = new NewOpenTextDTO();
+        sampleOpenTextDTO.setCourseId(courseId);
+        sampleOpenTextDTO.setStatement(statement);
+        sampleOpenTextDTO.setOrder(order);
+
+        sampleSingleChoiceDTO = new NewSingleChoiceDTO();
+        sampleSingleChoiceDTO.setCourseId(courseId);
+        sampleSingleChoiceDTO.setStatement(statement);
+        sampleSingleChoiceDTO.setOrder(order);
+        sampleSingleChoiceDTO.setOptions(singleChoiceOptions);
+
+        sampleMultipleChoiceDTO = new NewMultipleChoiceDTO();
+        sampleMultipleChoiceDTO.setCourseId(courseId);
+        sampleMultipleChoiceDTO.setStatement(statement);
+        sampleMultipleChoiceDTO.setOrder(order);
+        sampleMultipleChoiceDTO.setOptions(multipleChoiceOptions);
+
+        sampleCourse = new Course(
+                "Java",
+                "desc",
+                new User("Paulo", "paulo@alura.com.br", Role.INSTRUCTOR)
+        );
     }
 
-    private OptionDTO option(String text, boolean correct) {
-        OptionDTO o = new OptionDTO();
-        o.setOption(text);
-        o.setIsCorrect(correct);
-        return o;
+    // -----------------------
+    // General tests
+    // -----------------------
+
+    @Nested
+    class GeneralTests {
+        @Test
+        void createNewTask__should_return_bad_request_when_statement_length_under_4_chars() {
+            String shortStatement = "abc";
+            sampleOpenTextDTO.setStatement(shortStatement);
+            sampleSingleChoiceDTO.setStatement(shortStatement);
+            sampleMultipleChoiceDTO.setStatement(shortStatement);
+
+            when(courseRepository.findById(1L)).thenReturn(Optional.of(sampleCourse));
+
+            String expectedField = "statement";
+
+            ResponseEntity<?> openTextResponse = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
+            assertEquals(HttpStatus.BAD_REQUEST, openTextResponse.getStatusCode());
+            assertNotNull(openTextResponse.getBody());
+            assertEquals(expectedField, ((ErrorItemDTO) openTextResponse.getBody()).getField());
+
+            ResponseEntity<?> singleChoiceResponse = taskService.createNewTask(sampleSingleChoiceDTO, Type.SINGLE_CHOICE);
+            assertEquals(HttpStatus.BAD_REQUEST, singleChoiceResponse.getStatusCode());
+            assertNotNull(singleChoiceResponse.getBody());
+            assertEquals(expectedField, ((ErrorItemDTO) singleChoiceResponse.getBody()).getField());
+
+            ResponseEntity<?> multipleChoiceResponse = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+            assertEquals(HttpStatus.BAD_REQUEST, multipleChoiceResponse.getStatusCode());
+            assertNotNull(multipleChoiceResponse.getBody());
+            assertEquals(expectedField, ((ErrorItemDTO) multipleChoiceResponse.getBody()).getField());
+
+            verify(taskRepository, never()).save(any());
+        }
+
+        @Test
+        void createNewTask__should_create_when_statement_length_4_chars() {
+            String minimumStatement = "abcd"; // exactly 4 chars (min = 4)
+            sampleOpenTextDTO.setStatement(minimumStatement);
+            sampleSingleChoiceDTO.setStatement(minimumStatement);
+            sampleMultipleChoiceDTO.setStatement(minimumStatement);
+
+            when(courseRepository.findById(1L)).thenReturn(Optional.of(sampleCourse));
+            when(taskRepository.countByCourseId(1L)).thenReturn(0);
+
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleOpenTextDTO.getStatement())).thenReturn(false);
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleSingleChoiceDTO.getStatement())).thenReturn(false);
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleMultipleChoiceDTO.getStatement())).thenReturn(false);
+
+            ResponseEntity<?> responseOpenText = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
+            assertEquals(HttpStatus.CREATED, responseOpenText.getStatusCode());
+
+            ResponseEntity<?> responseSingleChoice = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
+            assertEquals(HttpStatus.CREATED, responseSingleChoice.getStatusCode());
+
+            ResponseEntity<?> responseMultipleChoice = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
+            assertEquals(HttpStatus.CREATED, responseMultipleChoice.getStatusCode());
+
+            verify(taskRepository, times(3)).save(any(Task.class));
+        }
+
+        @Test
+        void createNewTask__should_return_bad_request_when_statement_length_over_255_chars() {
+            String longStatement = "x".repeat(256); // 256 chars (max = 255)
+            sampleOpenTextDTO.setStatement(longStatement);
+            sampleSingleChoiceDTO.setStatement(longStatement);
+            sampleMultipleChoiceDTO.setStatement(longStatement);
+
+            when(courseRepository.findById(1L)).thenReturn(Optional.of(sampleCourse));
+
+            String expectedField = "statement";
+
+            ResponseEntity<?> openTextResponse = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
+            assertEquals(HttpStatus.BAD_REQUEST, openTextResponse.getStatusCode());
+            assertNotNull(openTextResponse.getBody());
+            assertEquals(expectedField, ((ErrorItemDTO) openTextResponse.getBody()).getField());
+
+            ResponseEntity<?> singleChoiceResponse = taskService.createNewTask(sampleSingleChoiceDTO, Type.SINGLE_CHOICE);
+            assertEquals(HttpStatus.BAD_REQUEST, singleChoiceResponse.getStatusCode());
+            assertNotNull(singleChoiceResponse.getBody());
+            assertEquals(expectedField, ((ErrorItemDTO) singleChoiceResponse.getBody()).getField());
+
+            ResponseEntity<?> multipleChoiceResponse = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+            assertEquals(HttpStatus.BAD_REQUEST, multipleChoiceResponse.getStatusCode());
+            assertNotNull(multipleChoiceResponse.getBody());
+            assertEquals(expectedField, ((ErrorItemDTO) multipleChoiceResponse.getBody()).getField());
+
+            verify(taskRepository, never()).save(any());
+        }
+
+        @Test
+        void createNewTask___should_create_when_statement_length_255_chars() {
+            String maximumStatement = "x".repeat(255); // exactly 255 chars (max = 255)
+            sampleOpenTextDTO.setStatement(maximumStatement);
+            sampleSingleChoiceDTO.setStatement(maximumStatement);
+            sampleMultipleChoiceDTO.setStatement(maximumStatement);
+
+            when(courseRepository.findById(1L)).thenReturn(Optional.of(sampleCourse));
+            when(taskRepository.countByCourseId(1L)).thenReturn(0);
+
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleOpenTextDTO.getStatement())).thenReturn(false);
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleSingleChoiceDTO.getStatement())).thenReturn(false);
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleMultipleChoiceDTO.getStatement())).thenReturn(false);
+
+            ResponseEntity<?> responseOpenText = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
+            assertEquals(HttpStatus.CREATED, responseOpenText.getStatusCode());
+
+            ResponseEntity<?> responseSingleChoice = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
+            assertEquals(HttpStatus.CREATED, responseSingleChoice.getStatusCode());
+
+            ResponseEntity<?> responseMultipleChoice = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
+            assertEquals(HttpStatus.CREATED, responseMultipleChoice.getStatusCode());
+
+            verify(taskRepository, times(3)).save(any(Task.class));
+        }
+
+        @Test
+        void createNewTask__should_return_bad_request_when_statement_duplicate_for_course() {
+            String statement = "Duplicate statement";
+            sampleOpenTextDTO.setStatement(statement);
+            sampleSingleChoiceDTO.setStatement(statement);
+            sampleMultipleChoiceDTO.setStatement(statement);
+
+            when(courseRepository.findById(1L)).thenReturn(Optional.of(sampleCourse));
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleOpenTextDTO.getStatement())).thenReturn(true);
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleSingleChoiceDTO.getStatement())).thenReturn(true);
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleMultipleChoiceDTO.getStatement())).thenReturn(true);
+
+            String expectedField = "statement";
+
+            ResponseEntity<?> openTextResponse = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
+            assertEquals(HttpStatus.BAD_REQUEST, openTextResponse.getStatusCode());
+            assertNotNull(openTextResponse.getBody());
+            assertEquals(expectedField, ((ErrorItemDTO) openTextResponse.getBody()).getField());
+
+            ResponseEntity<?> singleChoiceResponse = taskService.createNewTask(sampleSingleChoiceDTO, Type.SINGLE_CHOICE);
+            assertEquals(HttpStatus.BAD_REQUEST, singleChoiceResponse.getStatusCode());
+            assertNotNull(singleChoiceResponse.getBody());
+            assertEquals(expectedField, ((ErrorItemDTO) singleChoiceResponse.getBody()).getField());
+
+            ResponseEntity<?> multipleChoiceResponse = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+            assertEquals(HttpStatus.BAD_REQUEST, multipleChoiceResponse.getStatusCode());
+            assertNotNull(multipleChoiceResponse.getBody());
+            assertEquals(expectedField, ((ErrorItemDTO) multipleChoiceResponse.getBody()).getField());
+
+            verify(taskRepository, never()).save(any());
+        }
+
+        @Test
+        void createNewTask__should_return_bad_request_when_order_less_than_1() {
+            Integer order = 0;
+            sampleOpenTextDTO.setOrder(order);
+            sampleSingleChoiceDTO.setOrder(order);
+            sampleMultipleChoiceDTO.setOrder(order);
+
+            when(courseRepository.findById(1L)).thenReturn(Optional.of(sampleCourse));
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleOpenTextDTO.getStatement())).thenReturn(false);
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleSingleChoiceDTO.getStatement())).thenReturn(false);
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleMultipleChoiceDTO.getStatement())).thenReturn(false);
+
+            String expectedField = "order";
+
+            ResponseEntity<?> openTextResponse = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
+            assertEquals(HttpStatus.BAD_REQUEST, openTextResponse.getStatusCode());
+            assertNotNull(openTextResponse.getBody());
+            assertEquals(expectedField, ((ErrorItemDTO) openTextResponse.getBody()).getField());
+
+            ResponseEntity<?> singleChoiceResponse = taskService.createNewTask(sampleSingleChoiceDTO, Type.SINGLE_CHOICE);
+            assertEquals(HttpStatus.BAD_REQUEST, singleChoiceResponse.getStatusCode());
+            assertNotNull(singleChoiceResponse.getBody());
+            assertEquals(expectedField, ((ErrorItemDTO) singleChoiceResponse.getBody()).getField());
+
+            ResponseEntity<?> multipleChoiceResponse = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+            assertEquals(HttpStatus.BAD_REQUEST, multipleChoiceResponse.getStatusCode());
+            assertNotNull(multipleChoiceResponse.getBody());
+            assertEquals(expectedField, ((ErrorItemDTO) multipleChoiceResponse.getBody()).getField());
+
+            verify(taskRepository, never()).save(any());
+        }
+
+        @Test
+        void createNewTask__should_shift_order_and_save_when_inserted_in_middle() {
+            sampleOpenTextDTO.setOrder(3);
+            sampleSingleChoiceDTO.setOrder(3);
+            sampleMultipleChoiceDTO.setOrder(3);
+
+            when(courseRepository.findById(1L)).thenReturn(Optional.of(sampleCourse));
+
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleOpenTextDTO.getStatement())).thenReturn(false);
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleSingleChoiceDTO.getStatement())).thenReturn(false);
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleMultipleChoiceDTO.getStatement())).thenReturn(false);
+
+            // Course already contains multiple tasks, insertion of the new task will cause a shift in the sequence
+            when(taskRepository.countByCourseId(1L)).thenReturn(5);
+
+            ResponseEntity<?> responseOpenText = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
+            assertEquals(HttpStatus.CREATED, responseOpenText.getStatusCode());
+
+            ResponseEntity<?> responseSingleChoice = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
+            assertEquals(HttpStatus.CREATED, responseSingleChoice.getStatusCode());
+
+            ResponseEntity<?> responseMultipleChoice = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
+            assertEquals(HttpStatus.CREATED, responseMultipleChoice.getStatusCode());
+
+            verify(taskRepository, times(3)).shiftOrders(1L, 3);
+            verify(taskRepository, times(3)).save(any(Task.class));
+        }
+
+        @Test
+        void createNewTask__singleChoice_should_create_when_order_is_append_no_shift() {
+            sampleOpenTextDTO.setOrder(3);
+            sampleSingleChoiceDTO.setOrder(3);
+            sampleMultipleChoiceDTO.setOrder(3);
+
+            when(courseRepository.findById(1L)).thenReturn(Optional.of(sampleCourse));
+
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleOpenTextDTO.getStatement())).thenReturn(false);
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleSingleChoiceDTO.getStatement())).thenReturn(false);
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleMultipleChoiceDTO.getStatement())).thenReturn(false);
+
+            // Course already contains multiple tasks, insertion of the new task will only append the sequence
+            when(taskRepository.countByCourseId(1L)).thenReturn(2);
+
+            ResponseEntity<?> responseOpenText = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
+            assertEquals(HttpStatus.CREATED, responseOpenText.getStatusCode());
+
+            ResponseEntity<?> responseSingleChoice = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
+            assertEquals(HttpStatus.CREATED, responseSingleChoice.getStatusCode());
+
+            ResponseEntity<?> responseMultipleChoice = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
+            assertEquals(HttpStatus.CREATED, responseMultipleChoice.getStatusCode());
+
+            verify(taskRepository, times(0)).shiftOrders(anyLong(), anyInt());
+            verify(taskRepository, times(3)).save(any(Task.class));
+        }
+
+        @Test
+        void createNewTask__should_return_bad_request_when_order_invalid() {
+            sampleOpenTextDTO.setOrder(10);
+            sampleSingleChoiceDTO.setOrder(10);
+            sampleMultipleChoiceDTO.setOrder(10);
+
+            when(courseRepository.findById(1L)).thenReturn(Optional.of(sampleCourse));
+            when(taskRepository.countByCourseId(1L)).thenReturn(7);
+
+            String expectedField = "order";
+
+            ResponseEntity<?> responseOpenText = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
+            assertEquals(HttpStatus.BAD_REQUEST, responseOpenText.getStatusCode());
+            assertNotNull(responseOpenText.getBody());
+            assertEquals(expectedField, ((ErrorItemDTO) responseOpenText.getBody()).getField());
+
+            ResponseEntity<?> responseSingleChoice = taskService.createNewTask(sampleSingleChoiceDTO, Type.SINGLE_CHOICE);
+            assertEquals(HttpStatus.BAD_REQUEST, responseSingleChoice.getStatusCode());
+            assertNotNull(responseSingleChoice.getBody());
+            assertEquals(expectedField, ((ErrorItemDTO) responseSingleChoice.getBody()).getField());
+
+            ResponseEntity<?> responseMultipleChoice = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+            assertEquals(HttpStatus.BAD_REQUEST, responseMultipleChoice.getStatusCode());
+            assertNotNull(responseMultipleChoice.getBody());
+            assertEquals(expectedField, ((ErrorItemDTO) responseMultipleChoice.getBody()).getField());
+
+            verify(taskRepository, never()).save(any());
+        }
+
+        @Test
+        void createNewTask__should_return_bad_request_when_course_published()  {
+            sampleCourse.setStatus(Status.PUBLISHED);
+
+            when(courseRepository.findById(1L)).thenReturn(Optional.of(sampleCourse));
+
+            String expectedField = "status";
+
+            ResponseEntity<?> openTextResponse = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
+            assertEquals(HttpStatus.BAD_REQUEST, openTextResponse.getStatusCode());
+            assertNotNull(openTextResponse.getBody());
+            assertEquals(expectedField, ((ErrorItemDTO) openTextResponse.getBody()).getField());
+
+            ResponseEntity<?> singleChoiceResponse = taskService.createNewTask(sampleSingleChoiceDTO, Type.SINGLE_CHOICE);
+            assertEquals(HttpStatus.BAD_REQUEST, singleChoiceResponse.getStatusCode());
+            assertNotNull(singleChoiceResponse.getBody());
+            assertEquals(expectedField, ((ErrorItemDTO) singleChoiceResponse.getBody()).getField());
+
+            ResponseEntity<?> multipleChoiceResponse = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+            assertEquals(HttpStatus.BAD_REQUEST, multipleChoiceResponse.getStatusCode());
+            assertNotNull(multipleChoiceResponse.getBody());
+            assertEquals(expectedField, ((ErrorItemDTO) multipleChoiceResponse.getBody()).getField());
+
+            verify(taskRepository, never()).save(any());
+        }
+
+        @SuppressWarnings("unchecked")
+        @Test
+        void createNewTask__should_return_bad_request_when_fields_are_null_or_blank() {
+            sampleOpenTextDTO.setCourseId(null);
+            sampleOpenTextDTO.setStatement("");
+            sampleOpenTextDTO.setOrder(null);
+
+            sampleSingleChoiceDTO.setCourseId(null);
+            sampleSingleChoiceDTO.setStatement("");
+            sampleSingleChoiceDTO.setOrder(null);
+            sampleSingleChoiceDTO.setOptions(null);
+
+            sampleMultipleChoiceDTO.setCourseId(null);
+            sampleMultipleChoiceDTO.setStatement("");
+            sampleMultipleChoiceDTO.setOrder(null);
+            sampleMultipleChoiceDTO.setOptions(null);
+
+            Set<String> expectedFieldsOpenText = Set.of("courseId", "statement", "order");
+            Set<String> expectedFieldsChoice = Set.of("courseId", "statement", "order", "options");
+
+            ResponseEntity<?> openTextResponse = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
+            assertEquals(HttpStatus.BAD_REQUEST, openTextResponse.getStatusCode());
+            assertNotNull(openTextResponse.getBody());
+            Set<String> bodyFieldsOpenText = ((List<ErrorItemDTO>) openTextResponse.getBody()).stream()
+                    .map(ErrorItemDTO::getField)
+                    .collect(Collectors.toSet());
+            assertTrue(bodyFieldsOpenText.containsAll(expectedFieldsOpenText));
+
+            ResponseEntity<?> singleChoiceResponse = taskService.createNewTask(sampleSingleChoiceDTO, Type.SINGLE_CHOICE);
+            assertEquals(HttpStatus.BAD_REQUEST, singleChoiceResponse.getStatusCode());
+            assertNotNull(singleChoiceResponse.getBody());
+            Set<String> bodyFieldsSingleChoice = ((List<ErrorItemDTO>) singleChoiceResponse.getBody()).stream()
+                    .map(ErrorItemDTO::getField)
+                    .collect(Collectors.toSet());
+            assertTrue(bodyFieldsSingleChoice.containsAll(expectedFieldsChoice));
+
+            ResponseEntity<?> multipleChoiceResponse = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+            assertEquals(HttpStatus.BAD_REQUEST, multipleChoiceResponse.getStatusCode());
+            assertNotNull(multipleChoiceResponse.getBody());
+            Set<String> bodyFieldsMultipleChoice = ((List<ErrorItemDTO>) multipleChoiceResponse.getBody()).stream()
+                    .map(ErrorItemDTO::getField)
+                    .collect(Collectors.toSet());
+            assertTrue(bodyFieldsMultipleChoice.containsAll(expectedFieldsChoice));
+
+            verify(taskRepository, never()).save(any());
+        }
+
+        @Test
+        void createNewTask__should_return_not_found_when_course_missing() {
+            when(courseRepository.findById(1L)).thenReturn(Optional.empty());
+
+            ResponseEntity<?> openTextResponse = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
+            assertEquals(HttpStatus.NOT_FOUND, openTextResponse.getStatusCode());
+
+            ResponseEntity<?> singleChoiceResponse = taskService.createNewTask(sampleSingleChoiceDTO, Type.SINGLE_CHOICE);
+            assertEquals(HttpStatus.NOT_FOUND, singleChoiceResponse.getStatusCode());
+
+            ResponseEntity<?> multipleChoiceResponse = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+            assertEquals(HttpStatus.NOT_FOUND, multipleChoiceResponse.getStatusCode());
+
+            verifyNoInteractions(taskRepository);
+        }
     }
 
     // -----------------------
     // OpenText tests
     // -----------------------
 
-    @Test
-    void createNewTask__openText_should_return_not_found_when_course_missing() {
-        NewOpenTextDTO dto = new NewOpenTextDTO();
-        dto.setCourseId(999L);
-        dto.setStatement("O que aprendemos hoje?");
-        dto.setOrder(1);
+    @Nested
+    class OpenTextTests {
+        @Test
+        void createNewTask__openText_should_create_when_valid() {
+            when(courseRepository.findById(1L)).thenReturn(Optional.of(sampleCourse));
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleOpenTextDTO.getStatement())).thenReturn(false);
+            when(taskRepository.countByCourseId(1L)).thenReturn(0);
 
-        when(courseRepository.findById(999L)).thenReturn(Optional.empty());
+            ResponseEntity<?> responseOpenText = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
+            assertEquals(HttpStatus.CREATED, responseOpenText.getStatusCode());
 
-        ResponseEntity<?> resp = taskService.createNewTask(dto, Type.OPEN_TEXT);
-        assertEquals(HttpStatus.NOT_FOUND, resp.getStatusCode());
-        verifyNoInteractions(taskRepository);
-    }
-
-    @Test
-    void createNewTask__openText_should_return_bad_request_when_course_is_published() {
-        Course course = new Course("Java", "desc", instructor());
-        course.setStatus(Status.PUBLISHED);
-
-        NewOpenTextDTO dto = new NewOpenTextDTO();
-        dto.setCourseId(1L);
-        dto.setStatement("O que aprendemos hoje?");
-        dto.setOrder(1);
-
-        when(courseRepository.findById(1L)).thenReturn(Optional.of(course));
-
-        ResponseEntity<?> resp = taskService.createNewTask(dto, Type.OPEN_TEXT);
-        assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
-        assertInstanceOf(ErrorItemDTO.class, resp.getBody());
-        assertEquals("courseId", ((ErrorItemDTO) resp.getBody()).getField());
-        verifyNoInteractions(taskRepository);
-    }
-
-    @Test
-    void createNewTask__openText_should_return_bad_request_when_order_invalid() {
-        Course course = new Course("Java", "desc", instructor());
-
-        NewOpenTextDTO dto = new NewOpenTextDTO();
-        dto.setCourseId(1L);
-        dto.setStatement("O que aprendemos hoje?");
-        dto.setOrder(999);
-
-        when(courseRepository.findById(1L)).thenReturn(Optional.of(course));
-        when(taskRepository.countByCourseId(1L)).thenReturn(0);
-
-        ResponseEntity<?> resp = taskService.createNewTask(dto, Type.OPEN_TEXT);
-        assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
-        assertEquals("order", ((ErrorItemDTO) resp.getBody()).getField());
-        verify(taskRepository, never()).save(any());
-    }
-
-    @Test
-    void createNewTask__openText_should_shift_and_save_when_insert_in_middle() {
-        Course course = new Course("Java", "desc", instructor());
-
-        NewOpenTextDTO dto = new NewOpenTextDTO();
-        dto.setCourseId(1L);
-        dto.setStatement("O que aprendemos hoje?");
-        dto.setOrder(2);
-
-        when(courseRepository.findById(1L)).thenReturn(Optional.of(course));
-        when(taskRepository.existsByCourseAndStatement(course, dto.getStatement())).thenReturn(false);
-        when(taskRepository.countByCourseId(1L)).thenReturn(2);
-
-        ResponseEntity<?> resp = taskService.createNewTask(dto, Type.OPEN_TEXT);
-        assertEquals(HttpStatus.CREATED, resp.getStatusCode());
-
-        verify(taskRepository, times(1)).shiftOrders(1L, 2);
-        verify(taskRepository, times(1)).save(any(Task.class));
-    }
-
-    @Test
-    void createNewTask__openText_should_return_bad_request_when_statement_duplicate() {
-        Course course = new Course("Java", "desc", instructor());
-
-        NewOpenTextDTO dto = new NewOpenTextDTO();
-        dto.setCourseId(1L);
-        dto.setStatement("Duplicate Statement");
-        dto.setOrder(1);
-
-        when(courseRepository.findById(1L)).thenReturn(Optional.of(course));
-        when(taskRepository.existsByCourseAndStatement(course, dto.getStatement())).thenReturn(true);
-
-        ResponseEntity<?> resp = taskService.createNewTask(dto, Type.OPEN_TEXT);
-        assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
-        assertEquals("statement", ((ErrorItemDTO) resp.getBody()).getField());
-        verify(taskRepository, never()).save(any());
-    }
-
-    @Test
-    void createNewTask__openText_should_return_bad_request_when_order_null() {
-        NewOpenTextDTO dto = new NewOpenTextDTO();
-        dto.setCourseId(1L);
-        dto.setStatement("Order is null");
-        dto.setOrder(null);
-
-        ResponseEntity<?> resp = taskService.createNewTask(dto, Type.OPEN_TEXT);
-        assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
-        assertEquals("order", ((ErrorItemDTO) resp.getBody()).getField());
-        verify(taskRepository, never()).save(any());
-    }
-
-    @Test
-    void createNewTask__openText_should_return_bad_request_when_multiple_fields_are_null() {
-        NewOpenTextDTO dto = new NewOpenTextDTO();
-        dto.setCourseId(null);
-        dto.setStatement(null);
-        dto.setOrder(null);
-
-        ResponseEntity<?> resp = taskService.createNewTask(dto, Type.OPEN_TEXT);
-        assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
-        assertEquals("courseId", ((List<ErrorItemDTO>) resp.getBody()).get(0).getField());
-        assertEquals("statement", ((List<ErrorItemDTO>) resp.getBody()).get(1).getField());
-        assertEquals("order", ((List<ErrorItemDTO>) resp.getBody()).get(2).getField());
-        verify(taskRepository, never()).save(any());
-    }
-
-    @Test
-    void createNewTask__openText_should_return_bad_request_when_order_less_than_one() {
-        Course course = new Course("Java", "desc", instructor());
-
-        NewOpenTextDTO dto = new NewOpenTextDTO();
-        dto.setCourseId(1L);
-        dto.setStatement("Order < 1");
-        dto.setOrder(0);
-
-        when(courseRepository.findById(1L)).thenReturn(Optional.of(course));
-        when(taskRepository.countByCourseId(1L)).thenReturn(0);
-
-        ResponseEntity<?> resp = taskService.createNewTask(dto, Type.OPEN_TEXT);
-        assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
-        assertEquals("order", ((ErrorItemDTO) resp.getBody()).getField());
-        verify(taskRepository, never()).save(any());
-    }
-
-    @Test
-    void createNewTask__openText_should_return_bad_request_when_statement_too_short() {
-        Course course = new Course("Java", "desc", instructor());
-
-        NewOpenTextDTO dto = new NewOpenTextDTO();
-        dto.setCourseId(1L);
-        dto.setStatement("abc"); // 3 chars (min = 4)
-        dto.setOrder(1);
-
-        when(courseRepository.findById(1L)).thenReturn(Optional.of(course));
-
-        ResponseEntity<?> resp = taskService.createNewTask(dto, Type.OPEN_TEXT);
-
-        assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
-        assertInstanceOf(ErrorItemDTO.class, resp.getBody());
-        assertEquals("statement", ((ErrorItemDTO) resp.getBody()).getField());
-        verify(taskRepository, never()).save(any());
-    }
-
-    @Test
-    void createNewTask__openText_should_return_bad_request_when_statement_too_long() {
-        Course course = new Course("Java", "desc", instructor());
-
-        String longStatement = "x".repeat(256); // 256 chars (max = 255)
-
-        NewOpenTextDTO dto = new NewOpenTextDTO();
-        dto.setCourseId(1L);
-        dto.setStatement(longStatement);
-        dto.setOrder(1);
-
-        when(courseRepository.findById(1L)).thenReturn(Optional.of(course));
-
-        ResponseEntity<?> resp = taskService.createNewTask(dto, Type.OPEN_TEXT);
-
-        assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
-        assertInstanceOf(ErrorItemDTO.class, resp.getBody());
-        assertEquals("statement", ((ErrorItemDTO) resp.getBody()).getField());
-        verify(taskRepository, never()).save(any());
-    }
-
-    @Test
-    void createNewTask__openText_should_create_when_statement_length_is_minimum() {
-        Course course = new Course("Java", "desc", instructor());
-
-        NewOpenTextDTO dto = new NewOpenTextDTO();
-        dto.setCourseId(1L);
-        dto.setStatement("abcd"); // exactly 4 chars (min = 4)
-        dto.setOrder(1);
-
-        when(courseRepository.findById(1L)).thenReturn(Optional.of(course));
-        when(taskRepository.existsByCourseAndStatement(course, dto.getStatement())).thenReturn(false);
-        when(taskRepository.countByCourseId(1L)).thenReturn(0);
-
-        ResponseEntity<?> resp = taskService.createNewTask(dto, Type.OPEN_TEXT);
-
-        assertEquals(HttpStatus.CREATED, resp.getStatusCode());
-        verify(taskRepository, times(1)).save(any(Task.class));
-    }
-
-    @Test
-    void createNewTask__openText_should_create_when_statement_length_is_maximum() {
-        Course course = new Course("Java", "desc", instructor());
-
-        String longStatement = "x".repeat(255); // exactly 255 chars (max = 255)
-
-        NewOpenTextDTO dto = new NewOpenTextDTO();
-        dto.setCourseId(1L);
-        dto.setStatement(longStatement);
-        dto.setOrder(1);
-
-        when(courseRepository.findById(1L)).thenReturn(Optional.of(course));
-        when(taskRepository.existsByCourseAndStatement(course, dto.getStatement())).thenReturn(false);
-        when(taskRepository.countByCourseId(1L)).thenReturn(0);
-
-        ResponseEntity<?> resp = taskService.createNewTask(dto, Type.OPEN_TEXT);
-
-        assertEquals(HttpStatus.CREATED, resp.getStatusCode());
-        verify(taskRepository, times(1)).save(any(Task.class));
+            verify(taskRepository, times(1)).save(any(Task.class));
+        }
     }
 
     // -----------------------
     // SingleChoice tests
     // -----------------------
 
-    @Test
-    void createNewTask__singleChoice_should_return_bad_request_when_options_invalid_duplicate() {
-        Course course = new Course("Java", "desc", instructor());
+    @Nested
+    class SingleChoiceTests {
+        @Test
+        void createNewTask__singleChoice_should_return_bad_request_when_under_2_options() {
+            List<OptionDTO> singleChoiceOptions = List.of(
+                    new OptionDTO("Java", true)
+            );
 
-        NewSingleChoiceDTO dto = new NewSingleChoiceDTO();
-        dto.setCourseId(1L);
-        dto.setStatement("O que aprendemos hoje?");
-        dto.setOrder(1);
-        dto.setOptions(Arrays.asList(
-                option("Java", true),
-                option("java", false) // duplicate ignoring case
-        ));
+            sampleSingleChoiceDTO.setOptions(singleChoiceOptions);
 
-        when(courseRepository.findById(1L)).thenReturn(Optional.of(course));
-        when(taskRepository.countByCourseId(1L)).thenReturn(0);
-        when(taskRepository.existsByCourseAndStatement(course, dto.getStatement())).thenReturn(false);
+            when(courseRepository.findById(1L)).thenReturn(Optional.of(sampleCourse));
+            when(taskRepository.countByCourseId(1L)).thenReturn(0);
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleSingleChoiceDTO.getStatement())).thenReturn(false);
 
-        ResponseEntity<?> resp = taskService.createNewTask(dto, Type.SINGLE_CHOICE);
-        assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
-        assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
-        verify(taskRepository, never()).save(any());
-    }
+            ResponseEntity<?> resp = taskService.createNewTask(sampleSingleChoiceDTO, Type.SINGLE_CHOICE);
+            assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
+            assertNotNull(resp.getBody());
+            assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
 
-    @Test
-    void createNewTask__singleChoice_should_create_when_valid() {
-        Course course = new Course("Java", "desc", instructor());
+            verify(taskRepository, never()).save(any());
+        }
 
-        NewSingleChoiceDTO dto = new NewSingleChoiceDTO();
-        dto.setCourseId(1L);
-        dto.setStatement("O que aprendemos hoje?");
-        dto.setOrder(1);
-        dto.setOptions(Arrays.asList(
-                option("Java", true),
-                option("Python", false),
-                option("Ruby", false)
-        ));
+        @Test
+        void createNewTask__singleChoice_should_create_when_2_options() {
+            List<OptionDTO> singleChoiceOptions = List.of(
+                    new OptionDTO("Java", true),
+                    new OptionDTO("Python", false)
+            );
 
-        when(courseRepository.findById(1L)).thenReturn(Optional.of(course));
-        when(taskRepository.existsByCourseAndStatement(course, dto.getStatement())).thenReturn(false);
-        when(taskRepository.countByCourseId(1L)).thenReturn(0);
+            sampleSingleChoiceDTO.setOptions(singleChoiceOptions);
 
-        ResponseEntity<?> resp = taskService.createNewTask(dto, Type.SINGLE_CHOICE);
-        assertEquals(HttpStatus.CREATED, resp.getStatusCode());
-        verify(taskRepository, times(1)).save(any(Task.class));
-    }
+            when(courseRepository.findById(1L)).thenReturn(Optional.of(sampleCourse));
+            when(taskRepository.countByCourseId(1L)).thenReturn(0);
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleSingleChoiceDTO.getStatement())).thenReturn(false);
 
-    @Test
-    void createNewTask__singleChoice_should_create_when_order_is_append_no_shift() {
-        Course course = new Course("Java", "desc", instructor());
+            ResponseEntity<?> resp = taskService.createNewTask(sampleSingleChoiceDTO, Type.SINGLE_CHOICE);
+            assertEquals(HttpStatus.CREATED, resp.getStatusCode());
 
-        NewSingleChoiceDTO dto = new NewSingleChoiceDTO();
-        dto.setCourseId(1L);
-        dto.setStatement("Append order");
-        dto.setOrder(2); // requestedOrder == existingCount + 1
-        dto.setOptions(Arrays.asList(
-                option("Java", true),
-                option("Python", false)
-        ));
+            verify(taskRepository, times(1)).save(any(Task.class));
+        }
 
-        when(courseRepository.findById(1L)).thenReturn(Optional.of(course));
-        when(taskRepository.existsByCourseAndStatement(course, dto.getStatement())).thenReturn(false);
-        when(taskRepository.countByCourseId(1L)).thenReturn(1); // existingCount = 1
+        @Test
+        void createNewTask__singleChoice_should_return_bad_request_when_over_5_options() {
+            List<OptionDTO> singleChoiceOptions = List.of(
+                    new OptionDTO("Java", true),
+                    new OptionDTO("Python", false),
+                    new OptionDTO("Ruby", false),
+                    new OptionDTO("JavaScript", false),
+                    new OptionDTO("COBOL", false),
+                    new OptionDTO("Visual Basic", false)
+            );
 
-        ResponseEntity<?> resp = taskService.createNewTask(dto, Type.SINGLE_CHOICE);
-        assertEquals(HttpStatus.CREATED, resp.getStatusCode());
+            sampleSingleChoiceDTO.setOptions(singleChoiceOptions);
 
-        verify(taskRepository, never()).shiftOrders(anyLong(), anyInt());
-        verify(taskRepository, times(1)).save(any(Task.class));
-    }
+            when(courseRepository.findById(1L)).thenReturn(Optional.of(sampleCourse));
+            when(taskRepository.countByCourseId(1L)).thenReturn(0);
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleSingleChoiceDTO.getStatement())).thenReturn(false);
 
-    @Test
-    void createNewTask__singleChoice_should_return_bad_request_when_options_null() {
-        NewSingleChoiceDTO dto = new NewSingleChoiceDTO();
-        dto.setCourseId(1L);
-        dto.setStatement("Options is null");
-        dto.setOrder(1);
-        dto.setOptions(null);
+            ResponseEntity<?> resp = taskService.createNewTask(sampleSingleChoiceDTO, Type.SINGLE_CHOICE);
+            assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
+            assertNotNull(resp.getBody());
+            assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
 
-        ResponseEntity<?> resp = taskService.createNewTask(dto, Type.SINGLE_CHOICE);
-        assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
-        assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
-        verify(taskRepository, never()).save(any());
-    }
+            verify(taskRepository, never()).save(any());
+        }
 
-    @Test
-    void createNewTask__singleChoice_should_return_bad_request_when_option_too_short() {
-        Course course = new Course("Java", "desc", instructor());
+        @Test
+        void createNewTask__singleChoice_should_create_when_5_options() {
+            List<OptionDTO> singleChoiceOptions = List.of(
+                    new OptionDTO("Java", true),
+                    new OptionDTO("Python", false),
+                    new OptionDTO("Ruby", false),
+                    new OptionDTO("JavaScript", false),
+                    new OptionDTO("COBOL", false)
+            );
 
-        NewSingleChoiceDTO dto = new NewSingleChoiceDTO();
-        dto.setCourseId(1L);
-        dto.setStatement("Option text too short");
-        dto.setOrder(1);
-        dto.setOptions(Arrays.asList(
-                option("abc", true),  // option text is 3 chars (min = 4)
-                option("Python", false)
-        ));
+            sampleSingleChoiceDTO.setOptions(singleChoiceOptions);
 
-        when(courseRepository.findById(1L)).thenReturn(Optional.of(course));
-        when(taskRepository.countByCourseId(1L)).thenReturn(0);
-        when(taskRepository.existsByCourseAndStatement(course, dto.getStatement())).thenReturn(false);
+            when(courseRepository.findById(1L)).thenReturn(Optional.of(sampleCourse));
+            when(taskRepository.countByCourseId(1L)).thenReturn(0);
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleSingleChoiceDTO.getStatement())).thenReturn(false);
 
-        ResponseEntity<?> resp = taskService.createNewTask(dto, Type.SINGLE_CHOICE);
-        assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
-        assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
-        verify(taskRepository, never()).save(any());
-    }
+            ResponseEntity<?> resp = taskService.createNewTask(sampleSingleChoiceDTO, Type.SINGLE_CHOICE);
+            assertEquals(HttpStatus.CREATED, resp.getStatusCode());
 
-    @Test
-    void createNewTask__singleChoice_should_return_bad_request_when_option_equals_statement() {
-        Course course = new Course("Java", "desc", instructor());
+            verify(taskRepository, times(1)).save(any(Task.class));
+        }
 
-        NewSingleChoiceDTO dto = new NewSingleChoiceDTO();
-        dto.setCourseId(1L);
-        dto.setStatement("Same text");
-        dto.setOrder(1);
-        dto.setOptions(Arrays.asList(
-                option("Same text", true),
-                option("Other", false)
-        ));
+        @Test
+        void createNewTask__singleChoice_should_return_bad_request_when_all_options_incorrect() {
+            List<OptionDTO> singleChoiceOptions = List.of(
+                    new OptionDTO("Java", false),
+                    new OptionDTO("Python", false)
+            );
 
-        when(courseRepository.findById(1L)).thenReturn(Optional.of(course));
-        when(taskRepository.countByCourseId(1L)).thenReturn(0);
-        when(taskRepository.existsByCourseAndStatement(course, dto.getStatement())).thenReturn(false);
+            sampleSingleChoiceDTO.setOptions(singleChoiceOptions);
 
-        ResponseEntity<?> resp = taskService.createNewTask(dto, Type.SINGLE_CHOICE);
-        assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
-        assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
-        verify(taskRepository, never()).save(any());
-    }
+            when(courseRepository.findById(1L)).thenReturn(Optional.of(sampleCourse));
+            when(taskRepository.countByCourseId(1L)).thenReturn(0);
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleSingleChoiceDTO.getStatement())).thenReturn(false);
 
-    @Test
-    void createNewTask__singleChoice_should_return_bad_request_when_no_correct_option() {
-        Course course = new Course("Java", "desc", instructor());
+            ResponseEntity<?> resp = taskService.createNewTask(sampleSingleChoiceDTO, Type.SINGLE_CHOICE);
+            assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
+            assertNotNull(resp.getBody());
+            assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
 
-        NewSingleChoiceDTO dto = new NewSingleChoiceDTO();
-        dto.setCourseId(1L);
-        dto.setStatement("No correct option");
-        dto.setOrder(1);
-        dto.setOptions(Arrays.asList(
-                option("aaaa", false),
-                option("bbbb", false)
-        ));
+            verify(taskRepository, never()).save(any());
+        }
 
-        when(courseRepository.findById(1L)).thenReturn(Optional.of(course));
-        when(taskRepository.countByCourseId(1L)).thenReturn(0);
-        when(taskRepository.existsByCourseAndStatement(course, dto.getStatement())).thenReturn(false);
+        @Test
+        void createNewTask__singleChoice_should_return_bad_request_when_all_options_correct() {
+            List<OptionDTO> singleChoiceOptions = List.of(
+                    new OptionDTO("Java", true),
+                    new OptionDTO("Python", true)
+            );
 
-        ResponseEntity<?> resp = taskService.createNewTask(dto, Type.SINGLE_CHOICE);
-        assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
-        assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
-        verify(taskRepository, never()).save(any());
-    }
+            sampleSingleChoiceDTO.setOptions(singleChoiceOptions);
 
-    @Test
-    void createNewTask__singleChoice_should_return_bad_request_when_all_options_correct() {
-        Course course = new Course("Java", "desc", instructor());
+            when(courseRepository.findById(1L)).thenReturn(Optional.of(sampleCourse));
+            when(taskRepository.countByCourseId(1L)).thenReturn(0);
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleSingleChoiceDTO.getStatement())).thenReturn(false);
 
-        NewSingleChoiceDTO dto = new NewSingleChoiceDTO();
-        dto.setCourseId(1L);
-        dto.setStatement("All options are correct");
-        dto.setOrder(1);
-        dto.setOptions(Arrays.asList(
-                option("aaaa", true),
-                option("bbbb", true)
-        ));
+            ResponseEntity<?> resp = taskService.createNewTask(sampleSingleChoiceDTO, Type.SINGLE_CHOICE);
+            assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
+            assertNotNull(resp.getBody());
+            assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
 
-        when(courseRepository.findById(1L)).thenReturn(Optional.of(course));
-        when(taskRepository.countByCourseId(1L)).thenReturn(0);
-        when(taskRepository.existsByCourseAndStatement(course, dto.getStatement())).thenReturn(false);
+            verify(taskRepository, never()).save(any());
+        }
 
-        ResponseEntity<?> resp = taskService.createNewTask(dto, Type.SINGLE_CHOICE);
-        assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
-        assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
-        verify(taskRepository, never()).save(any());
-    }
+        @Test
+        void createNewTask__singleChoice_should_return_bad_request_when_option_length_under_4_chars() {
+            List<OptionDTO> singleChoiceOptions = List.of(
+                    new OptionDTO("Java", true),
+                    new OptionDTO("C++", false),
+                    new OptionDTO("Bash", false),
+                    new OptionDTO("Perl", false)
+            );
 
-    @Test
-    void createNewTask__singleChoice_should_return_bad_request_when_option_too_long() {
-        Course course = new Course("Java", "desc", instructor());
+            sampleSingleChoiceDTO.setOptions(singleChoiceOptions);
 
-        String longOption = "x".repeat(81); // option text is over 80 chars (max = 80)
+            when(courseRepository.findById(1L)).thenReturn(Optional.of(sampleCourse));
+            when(taskRepository.countByCourseId(1L)).thenReturn(0);
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleSingleChoiceDTO.getStatement())).thenReturn(false);
 
-        NewSingleChoiceDTO dto = new NewSingleChoiceDTO();
-        dto.setCourseId(1L);
-        dto.setStatement("Long option statement");
-        dto.setOrder(1);
-        dto.setOptions(Arrays.asList(
-                option(longOption, true),
-                option("Valid option", false)
-        ));
+            ResponseEntity<?> resp = taskService.createNewTask(sampleSingleChoiceDTO, Type.SINGLE_CHOICE);
+            assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
+            assertNotNull(resp.getBody());
+            assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
 
-        when(courseRepository.findById(1L)).thenReturn(Optional.of(course));
-        when(taskRepository.countByCourseId(1L)).thenReturn(0);
-        when(taskRepository.existsByCourseAndStatement(course, dto.getStatement())).thenReturn(false);
+            verify(taskRepository, never()).save(any());
+        }
 
-        ResponseEntity<?> resp = taskService.createNewTask(dto, Type.SINGLE_CHOICE);
-        assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
-        assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
-        verify(taskRepository, never()).save(any());
-    }
+        @Test
+        void createNewTask__singleChoice_should_create_when_option_length_4_chars() {
+            List<OptionDTO> singleChoiceOptions = List.of(
+                    new OptionDTO("Java", true),
+                    new OptionDTO("Curl", false),
+                    new OptionDTO("Bash", false),
+                    new OptionDTO("Perl", false)
+            );
 
-    @Test
-    void createNewTask__singleChoice_should_return_bad_request_when_too_few_options_single_choice() {
-        Course course = new Course("Java", "desc", instructor());
+            sampleSingleChoiceDTO.setOptions(singleChoiceOptions);
 
-        NewSingleChoiceDTO dto = new NewSingleChoiceDTO();
-        dto.setCourseId(1L);
-        dto.setStatement("Too few options");
-        dto.setOrder(1);
-        dto.setOptions(Arrays.asList(
-                option("aaaa", true) // only 1 option (min = 2)
-        ));
+            when(courseRepository.findById(1L)).thenReturn(Optional.of(sampleCourse));
+            when(taskRepository.countByCourseId(1L)).thenReturn(0);
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleSingleChoiceDTO.getStatement())).thenReturn(false);
 
-        when(courseRepository.findById(1L)).thenReturn(Optional.of(course));
-        when(taskRepository.countByCourseId(1L)).thenReturn(0);
-        when(taskRepository.existsByCourseAndStatement(course, dto.getStatement())).thenReturn(false);
+            ResponseEntity<?> resp = taskService.createNewTask(sampleSingleChoiceDTO, Type.SINGLE_CHOICE);
+            assertEquals(HttpStatus.CREATED, resp.getStatusCode());
 
-        ResponseEntity<?> resp = taskService.createNewTask(dto, Type.SINGLE_CHOICE);
-        assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
-        assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
-        verify(taskRepository, never()).save(any());
+            verify(taskRepository, times(1)).save(any(Task.class));
+        }
+
+        @Test
+        void createNewTask__singleChoice_should_return_bad_request_when_option_length_over_80_chars() {
+            String longOption1 = "x".repeat(80);
+            String longOption2 = "y".repeat(81);
+
+            List<OptionDTO> singleChoiceOptions = List.of(
+                    new OptionDTO(longOption1, true),
+                    new OptionDTO(longOption2, false)
+            );
+
+            sampleSingleChoiceDTO.setOptions(singleChoiceOptions);
+
+            when(courseRepository.findById(1L)).thenReturn(Optional.of(sampleCourse));
+            when(taskRepository.countByCourseId(1L)).thenReturn(0);
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleSingleChoiceDTO.getStatement())).thenReturn(false);
+
+            ResponseEntity<?> resp = taskService.createNewTask(sampleSingleChoiceDTO, Type.SINGLE_CHOICE);
+            assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
+            assertNotNull(resp.getBody());
+            assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
+
+            verify(taskRepository, never()).save(any());
+        }
+
+        @Test
+        void createNewTask__singleChoice_should_create_when_option_length_80_chars() {
+            String longOption1 = "x".repeat(80);
+            String longOption2 = "y".repeat(80);
+
+            List<OptionDTO> singleChoiceOptions = List.of(
+                    new OptionDTO(longOption1, true),
+                    new OptionDTO(longOption2, false)
+            );
+
+            sampleSingleChoiceDTO.setOptions(singleChoiceOptions);
+
+            when(courseRepository.findById(1L)).thenReturn(Optional.of(sampleCourse));
+            when(taskRepository.countByCourseId(1L)).thenReturn(0);
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleSingleChoiceDTO.getStatement())).thenReturn(false);
+
+            ResponseEntity<?> resp = taskService.createNewTask(sampleSingleChoiceDTO, Type.SINGLE_CHOICE);
+            assertEquals(HttpStatus.CREATED, resp.getStatusCode());
+
+            verify(taskRepository, times(1)).save(any(Task.class));
+        }
+
+        @Test
+        void createNewTask__singleChoice_should_return_bad_request_when_options_duplicate() {
+            List<OptionDTO> singleChoiceOptions = List.of(
+                    new OptionDTO("Java", true),
+                    new OptionDTO("java", false)
+            );
+
+            sampleSingleChoiceDTO.setOptions(singleChoiceOptions);
+
+            when(courseRepository.findById(1L)).thenReturn(Optional.of(sampleCourse));
+            when(taskRepository.countByCourseId(1L)).thenReturn(0);
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleSingleChoiceDTO.getStatement())).thenReturn(false);
+
+            ResponseEntity<?> resp = taskService.createNewTask(sampleSingleChoiceDTO, Type.SINGLE_CHOICE);
+            assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
+            assertNotNull(resp.getBody());
+            assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
+
+            verify(taskRepository, never()).save(any());
+        }
+
+        @Test
+        void createNewTask__singleChoice_should_return_bad_request_when_option_equals_statement() {
+            sampleSingleChoiceDTO.setStatement("Java");
+
+            List<OptionDTO> singleChoiceOptions = List.of(
+                    new OptionDTO("java", true),
+                    new OptionDTO("Python", false)
+            );
+
+            sampleSingleChoiceDTO.setOptions(singleChoiceOptions);
+
+            when(courseRepository.findById(1L)).thenReturn(Optional.of(sampleCourse));
+            when(taskRepository.countByCourseId(1L)).thenReturn(0);
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleSingleChoiceDTO.getStatement())).thenReturn(false);
+
+            ResponseEntity<?> resp = taskService.createNewTask(sampleSingleChoiceDTO, Type.SINGLE_CHOICE);
+            assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
+            assertNotNull(resp.getBody());
+            assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
+
+            verify(taskRepository, never()).save(any());
+        }
+
+        @Test
+        void createNewTask__singleChoice_should_return_bad_request_when_options_null() {
+            List<OptionDTO> singleChoiceOptions = List.of(
+                    new OptionDTO("java", true),
+                    new OptionDTO("Python", false),
+                    new OptionDTO("Ruby", false),
+                    new OptionDTO("JavaScript", false),
+                    new OptionDTO(null, false)
+            );
+
+            sampleSingleChoiceDTO.setOptions(singleChoiceOptions);
+
+            when(courseRepository.findById(1L)).thenReturn(Optional.of(sampleCourse));
+            when(taskRepository.countByCourseId(1L)).thenReturn(0);
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleSingleChoiceDTO.getStatement())).thenReturn(false);
+
+            ResponseEntity<?> resp = taskService.createNewTask(sampleSingleChoiceDTO, Type.SINGLE_CHOICE);
+            assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
+            assertNotNull(resp.getBody());
+            assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
+
+            verify(taskRepository, never()).save(any());
+        }
+
+        @Test
+        void createNewTask__singleChoice_should_create_when_valid() {
+            when(courseRepository.findById(1L)).thenReturn(Optional.of(sampleCourse));
+            when(taskRepository.countByCourseId(1L)).thenReturn(0);
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleSingleChoiceDTO.getStatement())).thenReturn(false);
+
+            ResponseEntity<?> resp = taskService.createNewTask(sampleSingleChoiceDTO, Type.SINGLE_CHOICE);
+            assertEquals(HttpStatus.CREATED, resp.getStatusCode());
+
+            verify(taskRepository, times(1)).save(any(Task.class));
+        }
     }
 
     // -----------------------
     // MultipleChoice tests
     // -----------------------
 
-    @Test
-    void createNewTask__multipleChoice_should_return_bad_request_when_all_correct() {
-        Course course = new Course("Java", "desc", instructor());
+    @Nested
+    class MultipleChoiceTests {
+        @Test
+        void createNewTask__multipleChoice_should_return_bad_request_when_under_3_options() {
+            List<OptionDTO> multipleChoiceOptions = List.of(
+                    new OptionDTO("Java", true),
+                    new OptionDTO("Python", true)
+            );
 
-        NewMultipleChoiceDTO dto = new NewMultipleChoiceDTO();
-        dto.setCourseId(1L);
-        dto.setStatement("O que aprendemos hoje?");
-        dto.setOrder(1);
-        dto.setOptions(Arrays.asList(
-                option("Java", true),
-                option("Spring", true),
-                option("Kotlin", true)
-        ));
+            sampleMultipleChoiceDTO.setOptions(multipleChoiceOptions);
 
-        when(courseRepository.findById(1L)).thenReturn(Optional.of(course));
-        when(taskRepository.countByCourseId(1L)).thenReturn(0);
-        when(taskRepository.existsByCourseAndStatement(course, dto.getStatement())).thenReturn(false);
+            when(courseRepository.findById(1L)).thenReturn(Optional.of(sampleCourse));
+            when(taskRepository.countByCourseId(1L)).thenReturn(0);
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleMultipleChoiceDTO.getStatement())).thenReturn(false);
 
-        ResponseEntity<?> resp = taskService.createNewTask(dto, Type.MULTIPLE_CHOICE);
-        assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
-        assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
-        verify(taskRepository, never()).save(any());
-    }
+            ResponseEntity<?> resp = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+            assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
+            assertNotNull(resp.getBody());
+            assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
 
-    @Test
-    void createNewTask__multipleChoice_should_create_when_valid_and_shift_if_needed() {
-        Course course = new Course("Java", "desc", instructor());
+            verify(taskRepository, never()).save(any());
+        }
 
-        NewMultipleChoiceDTO dto = new NewMultipleChoiceDTO();
-        dto.setCourseId(1L);
-        dto.setStatement("O que aprendemos hoje?");
-        dto.setOrder(2);
-        dto.setOptions(Arrays.asList(
-                option("Java", true),
-                option("Spring", true),
-                option("Ruby", false)
-        ));
+        @Test
+        void createNewTask__multipleChoice_should_create_when_3_options() {
+            List<OptionDTO> multipleChoiceOptions = List.of(
+                    new OptionDTO("Java", true),
+                    new OptionDTO("Python", true),
+                    new OptionDTO("Ruby", false)
+            );
 
-        when(courseRepository.findById(1L)).thenReturn(Optional.of(course));
-        when(taskRepository.existsByCourseAndStatement(course, dto.getStatement())).thenReturn(false);
-        when(taskRepository.countByCourseId(1L)).thenReturn(2); // will cause shift
+            sampleMultipleChoiceDTO.setOptions(multipleChoiceOptions);
 
-        ResponseEntity<?> resp = taskService.createNewTask(dto, Type.MULTIPLE_CHOICE);
-        assertEquals(HttpStatus.CREATED, resp.getStatusCode());
-        verify(taskRepository, times(1)).shiftOrders(1L, 2);
-        verify(taskRepository, times(1)).save(any(Task.class));
-    }
+            when(courseRepository.findById(1L)).thenReturn(Optional.of(sampleCourse));
+            when(taskRepository.countByCourseId(1L)).thenReturn(0);
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleMultipleChoiceDTO.getStatement())).thenReturn(false);
 
-    @Test
-    void createNewTask__multipleChoice_should_return_bad_request_when_only_one_correct() {
-        Course course = new Course("Java", "desc", instructor());
+            ResponseEntity<?> resp = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+            assertEquals(HttpStatus.CREATED, resp.getStatusCode());
 
-        NewMultipleChoiceDTO dto = new NewMultipleChoiceDTO();
-        dto.setCourseId(1L);
-        dto.setStatement("Only one correct option");
-        dto.setOrder(1);
-        dto.setOptions(Arrays.asList(
-                option("Java", true),
-                option("Spring", false),
-                option("Ruby", false)
-        ));
+            verify(taskRepository, times(1)).save(any(Task.class));
+        }
 
-        when(courseRepository.findById(1L)).thenReturn(Optional.of(course));
-        when(taskRepository.countByCourseId(1L)).thenReturn(0);
-        when(taskRepository.existsByCourseAndStatement(course, dto.getStatement())).thenReturn(false);
+        @Test
+        void createNewTask__multipleChoice_should_return_bad_request_when_over_5_options() {
+            List<OptionDTO> multipleChoiceOptions = List.of(
+                    new OptionDTO("Java", true),
+                    new OptionDTO("Python", true),
+                    new OptionDTO("Ruby", true),
+                    new OptionDTO("JavaScript", true),
+                    new OptionDTO("COBOL", false),
+                    new OptionDTO("Visual Basic", false)
+            );
 
-        ResponseEntity<?> resp = taskService.createNewTask(dto, Type.MULTIPLE_CHOICE);
-        assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
-        assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
-        verify(taskRepository, never()).save(any());
-    }
+            sampleMultipleChoiceDTO.setOptions(multipleChoiceOptions);
 
-    // New: multiple choice too few options (less than 3)
-    @Test
-    void createNewTask__multipleChoice_should_return_bad_request_when_too_few_options() {
-        Course course = new Course("Java", "desc", instructor());
+            when(courseRepository.findById(1L)).thenReturn(Optional.of(sampleCourse));
+            when(taskRepository.countByCourseId(1L)).thenReturn(0);
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleMultipleChoiceDTO.getStatement())).thenReturn(false);
 
-        NewMultipleChoiceDTO dto = new NewMultipleChoiceDTO();
-        dto.setCourseId(1L);
-        dto.setStatement("Too few options");
-        dto.setOrder(1);
-        dto.setOptions(Arrays.asList(
-                option("Option A", true),
-                option("Option B", false) // 2 options (min = 3)
-        ));
+            ResponseEntity<?> resp = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+            assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
+            assertNotNull(resp.getBody());
+            assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
 
-        when(courseRepository.findById(1L)).thenReturn(Optional.of(course));
-        when(taskRepository.countByCourseId(1L)).thenReturn(0);
-        when(taskRepository.existsByCourseAndStatement(course, dto.getStatement())).thenReturn(false);
+            verify(taskRepository, never()).save(any());
+        }
 
-        ResponseEntity<?> resp = taskService.createNewTask(dto, Type.MULTIPLE_CHOICE);
-        assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
-        assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
-        verify(taskRepository, never()).save(any());
-    }
+        @Test
+        void createNewTask__multipleChoice_should_create_when_5_options() {
+            List<OptionDTO> multipleChoiceOptions = List.of(
+                    new OptionDTO("Java", true),
+                    new OptionDTO("Python", true),
+                    new OptionDTO("Ruby", true),
+                    new OptionDTO("JavaScript", false),
+                    new OptionDTO("COBOL", false)
+            );
 
-    @Test
-    void createNewTask__multipleChoice_should_return_bad_request_when_too_many_options() {
-        Course course = new Course("Java", "desc", instructor());
+            sampleMultipleChoiceDTO.setOptions(multipleChoiceOptions);
 
-        NewMultipleChoiceDTO dto = new NewMultipleChoiceDTO();
-        dto.setCourseId(1L);
-        dto.setStatement("Too many options");
-        dto.setOrder(1);
-        dto.setOptions(Arrays.asList(
-                option("aaaa", true),
-                option("bbbb", false),
-                option("cccc", false),
-                option("dddd", false),
-                option("eeee", false),
-                option("ffff", false)   // 6 options (max = 5)
-        ));
+            when(courseRepository.findById(1L)).thenReturn(Optional.of(sampleCourse));
+            when(taskRepository.countByCourseId(1L)).thenReturn(0);
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleMultipleChoiceDTO.getStatement())).thenReturn(false);
 
-        when(courseRepository.findById(1L)).thenReturn(Optional.of(course));
-        when(taskRepository.countByCourseId(1L)).thenReturn(0);
-        when(taskRepository.existsByCourseAndStatement(course, dto.getStatement())).thenReturn(false);
+            ResponseEntity<?> resp = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+            assertEquals(HttpStatus.CREATED, resp.getStatusCode());
 
-        ResponseEntity<?> resp = taskService.createNewTask(dto, Type.MULTIPLE_CHOICE);
-        assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
-        assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
-        verify(taskRepository, never()).save(any());
-    }
+            verify(taskRepository, times(1)).save(any(Task.class));
+        }
 
-    @Test
-    void createNewTask__multipleChoice_should_return_bad_request_when_option_has_null_text() {
-        Course course = new Course("Java", "desc", instructor());
+        @Test
+        void createNewTask__multipleChoice_should_return_bad_request_when_under_2_options_correct() {
+            List<OptionDTO> multipleChoiceOptions = List.of(
+                    new OptionDTO("Java", true),
+                    new OptionDTO("Python", false),
+                    new OptionDTO("Ruby", false),
+                    new OptionDTO("JavaScript", false),
+                    new OptionDTO("COBOL", false)
+            );
 
-        OptionDTO nullOption = new OptionDTO();
-        nullOption.setOption(null);
-        nullOption.setIsCorrect(true);
+            sampleMultipleChoiceDTO.setOptions(multipleChoiceOptions);
 
-        NewMultipleChoiceDTO dto = new NewMultipleChoiceDTO();
-        dto.setCourseId(1L);
-        dto.setStatement("Null option");
-        dto.setOrder(1);
-        dto.setOptions(Arrays.asList(
-                nullOption,
-                option("aaaa", true),
-                option("bbbb", false)
-        ));
+            when(courseRepository.findById(1L)).thenReturn(Optional.of(sampleCourse));
+            when(taskRepository.countByCourseId(1L)).thenReturn(0);
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleMultipleChoiceDTO.getStatement())).thenReturn(false);
 
-        when(courseRepository.findById(1L)).thenReturn(Optional.of(course));
-        when(taskRepository.countByCourseId(1L)).thenReturn(0);
-        when(taskRepository.existsByCourseAndStatement(course, dto.getStatement())).thenReturn(false);
+            ResponseEntity<?> resp = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+            assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
+            assertNotNull(resp.getBody());
+            assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
 
-        ResponseEntity<?> resp = taskService.createNewTask(dto, Type.MULTIPLE_CHOICE);
-        assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
-        assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
-        verify(taskRepository, never()).save(any());
-    }
+            verify(taskRepository, never()).save(any());
+        }
 
-    @Test
-    void createNewTask__multipleChoice_should_return_bad_request_when_options_null() {
-        OptionDTO nullOption = new OptionDTO();
-        nullOption.setOption(null);
-        nullOption.setIsCorrect(true);
+        @Test
+        void createNewTask__multipleChoice_should_create_when_2_options_correct() {
+            List<OptionDTO> multipleChoiceOptions = List.of(
+                    new OptionDTO("Java", true),
+                    new OptionDTO("Python", true),
+                    new OptionDTO("Ruby", false),
+                    new OptionDTO("JavaScript", false),
+                    new OptionDTO("COBOL", false)
+            );
 
-        NewMultipleChoiceDTO dto = new NewMultipleChoiceDTO();
-        dto.setCourseId(1L);
-        dto.setStatement("Null option");
-        dto.setOrder(1);
-        dto.setOptions(null);
+            sampleMultipleChoiceDTO.setOptions(multipleChoiceOptions);
 
-        ResponseEntity<?> resp = taskService.createNewTask(dto, Type.MULTIPLE_CHOICE);
-        assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
-        assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
-        verify(taskRepository, never()).save(any());
+            when(courseRepository.findById(1L)).thenReturn(Optional.of(sampleCourse));
+            when(taskRepository.countByCourseId(1L)).thenReturn(0);
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleMultipleChoiceDTO.getStatement())).thenReturn(false);
+
+            ResponseEntity<?> resp = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+            assertEquals(HttpStatus.CREATED, resp.getStatusCode());
+
+            verify(taskRepository, times(1)).save(any(Task.class));
+        }
+
+        @Test
+        void createNewTask__multipleChoice_should_return_bad_request_when_no_incorrect_option() {
+            List<OptionDTO> multipleChoiceOptions = List.of(
+                    new OptionDTO("Java", true),
+                    new OptionDTO("Python", true),
+                    new OptionDTO("Ruby", true),
+                    new OptionDTO("JavaScript", true),
+                    new OptionDTO("COBOL", true)
+            );
+
+            sampleMultipleChoiceDTO.setOptions(multipleChoiceOptions);
+
+            when(courseRepository.findById(1L)).thenReturn(Optional.of(sampleCourse));
+            when(taskRepository.countByCourseId(1L)).thenReturn(0);
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleMultipleChoiceDTO.getStatement())).thenReturn(false);
+
+            ResponseEntity<?> resp = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+            assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
+            assertNotNull(resp.getBody());
+            assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
+
+            verify(taskRepository, never()).save(any());
+        }
+
+        @Test
+        void createNewTask__multipleChoice_should_create_when_1_option_incorrect() {
+            List<OptionDTO> multipleChoiceOptions = List.of(
+                    new OptionDTO("Java", true),
+                    new OptionDTO("Python", true),
+                    new OptionDTO("Ruby", true),
+                    new OptionDTO("JavaScript", true),
+                    new OptionDTO("COBOL", false)
+            );
+
+            sampleMultipleChoiceDTO.setOptions(multipleChoiceOptions);
+
+            when(courseRepository.findById(1L)).thenReturn(Optional.of(sampleCourse));
+            when(taskRepository.countByCourseId(1L)).thenReturn(0);
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleMultipleChoiceDTO.getStatement())).thenReturn(false);
+
+            ResponseEntity<?> resp = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+            assertEquals(HttpStatus.CREATED, resp.getStatusCode());
+
+            verify(taskRepository, times(1)).save(any(Task.class));
+        }
+
+
+        @Test
+        void createNewTask__multipleChoice_should_return_bad_request_when_option_length_under_4_chars() {
+            List<OptionDTO> multipleChoiceOptions = List.of(
+                    new OptionDTO("Java", true),
+                    new OptionDTO("C++", true),
+                    new OptionDTO("Bash", false),
+                    new OptionDTO("Perl", false)
+            );
+
+            sampleMultipleChoiceDTO.setOptions(multipleChoiceOptions);
+
+            when(courseRepository.findById(1L)).thenReturn(Optional.of(sampleCourse));
+            when(taskRepository.countByCourseId(1L)).thenReturn(0);
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleMultipleChoiceDTO.getStatement())).thenReturn(false);
+
+            ResponseEntity<?> resp = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+            assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
+            assertNotNull(resp.getBody());
+            assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
+
+            verify(taskRepository, never()).save(any());
+        }
+
+        @Test
+        void createNewTask__multipleChoice_should_create_when_option_length_4_chars() {
+            List<OptionDTO> multipleChoiceOptions = List.of(
+                    new OptionDTO("Java", true),
+                    new OptionDTO("Curl", true),
+                    new OptionDTO("Bash", false),
+                    new OptionDTO("Perl", false)
+            );
+
+            sampleMultipleChoiceDTO.setOptions(multipleChoiceOptions);
+
+            when(courseRepository.findById(1L)).thenReturn(Optional.of(sampleCourse));
+            when(taskRepository.countByCourseId(1L)).thenReturn(0);
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleMultipleChoiceDTO.getStatement())).thenReturn(false);
+
+            ResponseEntity<?> resp = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+            assertEquals(HttpStatus.CREATED, resp.getStatusCode());
+
+            verify(taskRepository, times(1)).save(any(Task.class));
+        }
+
+        @Test
+        void createNewTask__multipleChoice_should_return_bad_request_when_option_length_over_80_chars() {
+            String longOption1 = "w".repeat(80);
+            String longOption2 = "x".repeat(81);
+            String longOption3 = "y".repeat(80);
+            String longOption4 = "z".repeat(80);
+
+            List<OptionDTO> multipleChoiceOptions = List.of(
+                    new OptionDTO(longOption1, true),
+                    new OptionDTO(longOption2, true),
+                    new OptionDTO(longOption3, false),
+                    new OptionDTO(longOption4, false)
+            );
+
+            sampleMultipleChoiceDTO.setOptions(multipleChoiceOptions);
+
+            when(courseRepository.findById(1L)).thenReturn(Optional.of(sampleCourse));
+            when(taskRepository.countByCourseId(1L)).thenReturn(0);
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleMultipleChoiceDTO.getStatement())).thenReturn(false);
+
+            ResponseEntity<?> resp = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+            assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
+            assertNotNull(resp.getBody());
+            assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
+
+            verify(taskRepository, never()).save(any());
+        }
+
+        @Test
+        void createNewTask__multipleChoice_should_create_when_option_length_80_chars() {
+            String longOption1 = "w".repeat(80);
+            String longOption2 = "x".repeat(80);
+            String longOption3 = "y".repeat(80);
+            String longOption4 = "z".repeat(80);
+
+            List<OptionDTO> multipleChoiceOptions = List.of(
+                    new OptionDTO(longOption1, true),
+                    new OptionDTO(longOption2, true),
+                    new OptionDTO(longOption3, false),
+                    new OptionDTO(longOption4, false)
+            );
+
+            sampleMultipleChoiceDTO.setOptions(multipleChoiceOptions);
+
+            when(courseRepository.findById(1L)).thenReturn(Optional.of(sampleCourse));
+            when(taskRepository.countByCourseId(1L)).thenReturn(0);
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleMultipleChoiceDTO.getStatement())).thenReturn(false);
+
+            ResponseEntity<?> resp = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+            assertEquals(HttpStatus.CREATED, resp.getStatusCode());
+
+            verify(taskRepository, times(1)).save(any(Task.class));
+        }
+
+        @Test
+        void createNewTask__multipleChoice_should_return_bad_request_when_options_duplicate() {
+            List<OptionDTO> multipleChoiceOptions = List.of(
+                    new OptionDTO("Java", true),
+                    new OptionDTO("java", true),
+                    new OptionDTO("Ruby", false),
+                    new OptionDTO("JavaScript", false)
+            );
+
+            sampleMultipleChoiceDTO.setOptions(multipleChoiceOptions);
+
+            when(courseRepository.findById(1L)).thenReturn(Optional.of(sampleCourse));
+            when(taskRepository.countByCourseId(1L)).thenReturn(0);
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleMultipleChoiceDTO.getStatement())).thenReturn(false);
+
+            ResponseEntity<?> resp = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+            assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
+            assertNotNull(resp.getBody());
+            assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
+
+            verify(taskRepository, never()).save(any());
+        }
+
+        @Test
+        void createNewTask__multipleChoice_should_return_bad_request_when_option_equals_statement() {
+            sampleSingleChoiceDTO.setStatement("Java");
+
+            List<OptionDTO> multipleChoiceOptions = List.of(
+                    new OptionDTO("java", true),
+                    new OptionDTO("Python", false),
+                    new OptionDTO("Ruby", false),
+                    new OptionDTO("JavaScript", false)
+            );
+
+            sampleMultipleChoiceDTO.setOptions(multipleChoiceOptions);
+
+            when(courseRepository.findById(1L)).thenReturn(Optional.of(sampleCourse));
+            when(taskRepository.countByCourseId(1L)).thenReturn(0);
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleMultipleChoiceDTO.getStatement())).thenReturn(false);
+
+            ResponseEntity<?> resp = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+            assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
+            assertNotNull(resp.getBody());
+            assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
+
+            verify(taskRepository, never()).save(any());
+        }
+
+        @Test
+        void createNewTask__multipleChoice_should_return_bad_request_when_options_null() {
+            List<OptionDTO> multipleChoiceOptions = List.of(
+                    new OptionDTO("java", true),
+                    new OptionDTO("Python", true),
+                    new OptionDTO("Ruby", false),
+                    new OptionDTO("JavaScript", false),
+                    new OptionDTO(null, false)
+            );
+
+            sampleMultipleChoiceDTO.setOptions(multipleChoiceOptions);
+
+            when(courseRepository.findById(1L)).thenReturn(Optional.of(sampleCourse));
+            when(taskRepository.countByCourseId(1L)).thenReturn(0);
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleMultipleChoiceDTO.getStatement())).thenReturn(false);
+
+            ResponseEntity<?> resp = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+            assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
+            assertNotNull(resp.getBody());
+            assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
+
+            verify(taskRepository, never()).save(any());
+        }
+
+        @Test
+        void createNewTask__multipleChoice_should_create_when_valid() {
+            when(courseRepository.findById(1L)).thenReturn(Optional.of(sampleCourse));
+            when(taskRepository.countByCourseId(1L)).thenReturn(0);
+            when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleMultipleChoiceDTO.getStatement())).thenReturn(false);
+
+            ResponseEntity<?> resp = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+            assertEquals(HttpStatus.CREATED, resp.getStatusCode());
+
+            verify(taskRepository, times(1)).save(any(Task.class));
+        }
     }
 }

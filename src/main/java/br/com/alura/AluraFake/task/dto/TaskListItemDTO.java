@@ -2,11 +2,14 @@ package br.com.alura.AluraFake.task.dto;
 
 import br.com.alura.AluraFake.task.Task;
 import br.com.alura.AluraFake.task.Type;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
+import java.io.Serializable;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class TaskListItemDTO {
+@JsonInclude(JsonInclude.Include.NON_EMPTY)
+public class TaskListItemDTO implements Serializable {
 
     private Long id;
     private Integer order;

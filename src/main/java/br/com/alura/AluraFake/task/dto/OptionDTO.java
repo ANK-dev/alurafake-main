@@ -14,6 +14,11 @@ public class OptionDTO {
 
     public OptionDTO() {}
 
+    public OptionDTO(String option, Boolean isCorrect) {
+        this.option = option;
+        this.isCorrect = isCorrect;
+    }
+
     public String getOption() {
         return option;
     }

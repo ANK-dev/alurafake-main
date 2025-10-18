@@ -6,6 +6,7 @@ import br.com.alura.AluraFake.task.dto.NewSingleChoiceDTO;
 import br.com.alura.AluraFake.task.dto.OptionDTO;
 import br.com.alura.AluraFake.util.ErrorItemDTO;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -14,13 +15,14 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.util.Arrays;
 import java.util.List;
 
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(TaskController.class)
 class TaskControllerTest {
@@ -34,259 +36,272 @@ class TaskControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    // -----------------------
-    // OpenText tests
-    // -----------------------
+    private static final String TASK_NEW_OPEN_TEXT_ENDPOINT = "/task/new/opentext";
+    private static final String TASK_NEW_SINGLE_CHOICE_ENDPOINT = "/task/new/singlechoice";
+    private static final String TASK_NEW_MULTIPLE_CHOICE_ENDPOINT = "/task/new/multiplechoice";
 
-    @Test
-    void createNewTask__openText_should_return_not_found_when_course_missing() throws Exception {
-        NewOpenTextDTO dto = new NewOpenTextDTO();
-        dto.setCourseId(999L);
-        dto.setStatement("O que aprendemos hoje?");
-        dto.setOrder(1);
+    private NewOpenTextDTO sampleOpenTextDTO;
+    private NewSingleChoiceDTO sampleSingleChoiceDTO;
+    private NewMultipleChoiceDTO sampleMultipleChoiceDTO;
 
-        when(taskService.createNewTask(any(NewOpenTextDTO.class), eq(Type.OPEN_TEXT)))
-                .thenReturn(ResponseEntity.notFound().build());
+    @BeforeEach
+    void setup() {
+        String statement = "O que aprendemos hoje?";
+        Long courseId = 1L;
+        Integer order = 1;
+        List<OptionDTO> singleChoiceOptions = List.of(
+                new OptionDTO("Java", true),
+                new OptionDTO("Python", false)
+        );
+        List<OptionDTO> multipleChoiceOptions = List.of(
+                new OptionDTO("Java", true),
+                new OptionDTO("Spring", true),
+                new OptionDTO("Ruby", false)
+        );
 
-        mockMvc.perform(post("/task/new/opentext")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isNotFound());
+        sampleOpenTextDTO = new NewOpenTextDTO();
+        sampleOpenTextDTO.setCourseId(courseId);
+        sampleOpenTextDTO.setStatement(statement);
+        sampleOpenTextDTO.setOrder(order);
 
-        verify(taskService, times(1)).createNewTask(any(NewOpenTextDTO.class), eq(Type.OPEN_TEXT));
+        sampleSingleChoiceDTO = new NewSingleChoiceDTO();
+        sampleSingleChoiceDTO.setCourseId(courseId);
+        sampleSingleChoiceDTO.setStatement(statement);
+        sampleSingleChoiceDTO.setOrder(order);
+        sampleSingleChoiceDTO.setOptions(singleChoiceOptions);
+
+        sampleMultipleChoiceDTO = new NewMultipleChoiceDTO();
+        sampleMultipleChoiceDTO.setCourseId(courseId);
+        sampleMultipleChoiceDTO.setStatement(statement);
+        sampleMultipleChoiceDTO.setOrder(order);
+        sampleMultipleChoiceDTO.setOptions(multipleChoiceOptions);
     }
 
     @Test
-    void createNewTask__openText_should_return_bad_request_when_course_not_building() throws Exception {
-        NewOpenTextDTO dto = new NewOpenTextDTO();
-        dto.setCourseId(1L);
-        dto.setStatement("O que aprendemos hoje?");
-        dto.setOrder(1);
+    void createNewTask__should_return_bad_request_when_statement_under_4_chars() throws Exception {
+        String shortStatement = "abc";
+        sampleOpenTextDTO.setStatement(shortStatement);
+        sampleSingleChoiceDTO.setStatement(shortStatement);
+        sampleMultipleChoiceDTO.setStatement(shortStatement);
+
+        mockMvc.perform(post(TASK_NEW_OPEN_TEXT_ENDPOINT)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(sampleOpenTextDTO)))
+                .andExpect(status().isBadRequest());
+
+        verify(taskService, times(0)).createNewTask(any(NewOpenTextDTO.class), eq(Type.OPEN_TEXT));
+
+        mockMvc.perform(post(TASK_NEW_SINGLE_CHOICE_ENDPOINT)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(sampleSingleChoiceDTO)))
+                .andExpect(status().isBadRequest());
+
+        verify(taskService, times(0)).createNewTask(any(NewSingleChoiceDTO.class), eq(Type.SINGLE_CHOICE));
+
+        mockMvc.perform(post(TASK_NEW_MULTIPLE_CHOICE_ENDPOINT)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(sampleMultipleChoiceDTO)))
+                .andExpect(status().isBadRequest());
+
+        verify(taskService, times(0)).createNewTask(any(NewMultipleChoiceDTO.class), eq(Type.MULTIPLE_CHOICE));
+    }
+
+    @Test
+    void createNewTask__should_return_bad_request_when_statement_over_255_chars() throws Exception {
+        String longStatement = "x".repeat(256); // 256 chars (max = 255)
+        sampleOpenTextDTO.setStatement(longStatement);
+        sampleSingleChoiceDTO.setStatement(longStatement);
+        sampleMultipleChoiceDTO.setStatement(longStatement);
+
+        mockMvc.perform(post(TASK_NEW_OPEN_TEXT_ENDPOINT)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(sampleOpenTextDTO)))
+                .andExpect(status().isBadRequest());
+
+        verify(taskService, times(0)).createNewTask(any(NewOpenTextDTO.class), eq(Type.OPEN_TEXT));
+
+        mockMvc.perform(post(TASK_NEW_SINGLE_CHOICE_ENDPOINT)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(sampleSingleChoiceDTO)))
+                .andExpect(status().isBadRequest());
+
+        verify(taskService, times(0)).createNewTask(any(NewSingleChoiceDTO.class), eq(Type.SINGLE_CHOICE));
+
+        mockMvc.perform(post(TASK_NEW_MULTIPLE_CHOICE_ENDPOINT)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(sampleMultipleChoiceDTO)))
+                .andExpect(status().isBadRequest());
+
+        verify(taskService, times(0)).createNewTask(any(NewMultipleChoiceDTO.class), eq(Type.MULTIPLE_CHOICE));
+    }
+
+    @Test
+    void createNewTask__should_return_bad_request_when_statement_duplicate() throws Exception {
+        String statement = "Duplicate statement";
+        sampleOpenTextDTO.setStatement(statement);
+        sampleSingleChoiceDTO.setStatement(statement);
+        sampleMultipleChoiceDTO.setStatement(statement);
 
         when(taskService.createNewTask(any(NewOpenTextDTO.class), eq(Type.OPEN_TEXT)))
-                .thenReturn((ResponseEntity) ResponseEntity.badRequest().body(new ErrorItemDTO("courseId", "Course must be in BUILDING status to receive tasks")));
+                .thenReturn(ResponseEntity.badRequest().build());
+        when(taskService.createNewTask(any(NewSingleChoiceDTO.class), eq(Type.SINGLE_CHOICE)))
+                .thenReturn(ResponseEntity.badRequest().build());
+        when(taskService.createNewTask(any(NewMultipleChoiceDTO.class), eq(Type.MULTIPLE_CHOICE)))
+                .thenReturn(ResponseEntity.badRequest().build());
 
-        mockMvc.perform(post("/task/new/opentext")
+        mockMvc.perform(post(TASK_NEW_OPEN_TEXT_ENDPOINT)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(dto)))
+                        .content(objectMapper.writeValueAsString(sampleOpenTextDTO)))
+                .andExpect(status().isBadRequest());
+
+        verify(taskService, times(1)).createNewTask(any(NewOpenTextDTO.class), eq(Type.OPEN_TEXT));
+
+        mockMvc.perform(post(TASK_NEW_SINGLE_CHOICE_ENDPOINT)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(sampleSingleChoiceDTO)))
+                .andExpect(status().isBadRequest());
+
+        verify(taskService, times(1)).createNewTask(any(NewSingleChoiceDTO.class), eq(Type.SINGLE_CHOICE));
+
+        mockMvc.perform(post(TASK_NEW_MULTIPLE_CHOICE_ENDPOINT)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(sampleMultipleChoiceDTO)))
+                .andExpect(status().isBadRequest());
+
+        verify(taskService, times(1)).createNewTask(any(NewMultipleChoiceDTO.class), eq(Type.MULTIPLE_CHOICE));
+    }
+
+    @Test
+    void createNewTask__should_return_bad_request_when_order_less_than_1() throws Exception {
+        Integer order = 0;
+        sampleOpenTextDTO.setOrder(order);
+        sampleSingleChoiceDTO.setOrder(order);
+        sampleMultipleChoiceDTO.setOrder(order);
+
+        mockMvc.perform(post(TASK_NEW_OPEN_TEXT_ENDPOINT)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(sampleOpenTextDTO)))
+                .andExpect(status().isBadRequest());
+
+        verify(taskService, times(0)).createNewTask(any(NewOpenTextDTO.class), eq(Type.OPEN_TEXT));
+
+        mockMvc.perform(post(TASK_NEW_SINGLE_CHOICE_ENDPOINT)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(sampleSingleChoiceDTO)))
+                .andExpect(status().isBadRequest());
+
+        verify(taskService, times(0)).createNewTask(any(NewSingleChoiceDTO.class), eq(Type.SINGLE_CHOICE));
+
+        mockMvc.perform(post(TASK_NEW_MULTIPLE_CHOICE_ENDPOINT)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(sampleMultipleChoiceDTO)))
+                .andExpect(status().isBadRequest());
+
+        verify(taskService, times(0)).createNewTask(any(NewMultipleChoiceDTO.class), eq(Type.MULTIPLE_CHOICE));
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    @Test
+    void createNewTask__should_return_bad_request_when_course_published() throws Exception {
+        String field = "status";
+        String message = "Course must be in BUILDING status to receive tasks";
+
+        when(taskService.createNewTask(any(NewOpenTextDTO.class), eq(Type.OPEN_TEXT)))
+                .thenReturn((ResponseEntity) ResponseEntity.badRequest().body(new ErrorItemDTO(field, message)));
+        when(taskService.createNewTask(any(NewSingleChoiceDTO.class), eq(Type.SINGLE_CHOICE)))
+                .thenReturn((ResponseEntity) ResponseEntity.badRequest().body(new ErrorItemDTO(field, message)));
+        when(taskService.createNewTask(any(NewMultipleChoiceDTO.class), eq(Type.MULTIPLE_CHOICE)))
+                .thenReturn((ResponseEntity) ResponseEntity.badRequest().body(new ErrorItemDTO(field, message)));
+
+        mockMvc.perform(post(TASK_NEW_OPEN_TEXT_ENDPOINT)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(sampleOpenTextDTO)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.field").value("courseId"));
+                .andExpect(jsonPath("$.field").value(field));
 
         verify(taskService, times(1)).createNewTask(any(NewOpenTextDTO.class), eq(Type.OPEN_TEXT));
+
+        mockMvc.perform(post(TASK_NEW_SINGLE_CHOICE_ENDPOINT)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(sampleSingleChoiceDTO)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.field").value(field));
+
+        verify(taskService, times(1)).createNewTask(any(NewSingleChoiceDTO.class), eq(Type.SINGLE_CHOICE));
+
+        mockMvc.perform(post(TASK_NEW_MULTIPLE_CHOICE_ENDPOINT)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(sampleMultipleChoiceDTO)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.field").value(field));
+
+        verify(taskService, times(1)).createNewTask(any(NewMultipleChoiceDTO.class), eq(Type.MULTIPLE_CHOICE));
     }
 
     @Test
-    void createNewTask__openText_should_create_task_when_valid() throws Exception {
-        NewOpenTextDTO dto = new NewOpenTextDTO();
-        dto.setCourseId(1L);
-        dto.setStatement("O que aprendemos hoje?");
-        dto.setOrder(1);
+    void createNewTask__should_return_bad_request_when_fields_are_null_or_blank() throws Exception {
+        sampleOpenTextDTO.setCourseId(null);
+        sampleOpenTextDTO.setStatement("");
+        sampleOpenTextDTO.setOrder(null);
 
+        sampleSingleChoiceDTO.setCourseId(null);
+        sampleSingleChoiceDTO.setStatement("");
+        sampleSingleChoiceDTO.setOrder(null);
+
+        sampleMultipleChoiceDTO.setCourseId(null);
+        sampleMultipleChoiceDTO.setStatement("");
+        sampleMultipleChoiceDTO.setOrder(null);
+
+        mockMvc.perform(post(TASK_NEW_OPEN_TEXT_ENDPOINT)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(sampleOpenTextDTO)))
+                .andExpect(status().isBadRequest());
+
+        verify(taskService, times(0)).createNewTask(any(NewOpenTextDTO.class), eq(Type.OPEN_TEXT));
+
+        mockMvc.perform(post(TASK_NEW_SINGLE_CHOICE_ENDPOINT)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(sampleSingleChoiceDTO)))
+                .andExpect(status().isBadRequest());
+
+        verify(taskService, times(0)).createNewTask(any(NewSingleChoiceDTO.class), eq(Type.SINGLE_CHOICE));
+
+        mockMvc.perform(post(TASK_NEW_MULTIPLE_CHOICE_ENDPOINT)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(sampleMultipleChoiceDTO)))
+                .andExpect(status().isBadRequest());
+
+        verify(taskService, times(0)).createNewTask(any(NewMultipleChoiceDTO.class), eq(Type.MULTIPLE_CHOICE));
+    }
+
+    @Test
+    void createNewTask__should_create_when_valid() throws Exception {
         when(taskService.createNewTask(any(NewOpenTextDTO.class), eq(Type.OPEN_TEXT)))
                 .thenReturn(ResponseEntity.status(201).build());
+        when(taskService.createNewTask(any(NewSingleChoiceDTO.class), eq(Type.SINGLE_CHOICE)))
+                .thenReturn(ResponseEntity.status(201).build());
+        when(taskService.createNewTask(any(NewMultipleChoiceDTO.class), eq(Type.MULTIPLE_CHOICE)))
+                .thenReturn(ResponseEntity.status(201).build());
 
-        mockMvc.perform(post("/task/new/opentext")
+        mockMvc.perform(post(TASK_NEW_OPEN_TEXT_ENDPOINT)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(dto)))
+                        .content(objectMapper.writeValueAsString(sampleOpenTextDTO)))
                 .andExpect(status().isCreated());
 
         verify(taskService, times(1)).createNewTask(any(NewOpenTextDTO.class), eq(Type.OPEN_TEXT));
-    }
 
-    // -----------------------
-    // SingleChoice tests
-    // -----------------------
-
-    @Test
-    void createNewTask__singleChoice_should_return_not_found_when_course_missing() throws Exception {
-        NewSingleChoiceDTO dto = new NewSingleChoiceDTO();
-        dto.setCourseId(99L);
-        dto.setStatement("O que aprendemos hoje?");
-        dto.setOrder(1);
-        dto.setOptions(List.of(
-                createOption("Java", true),
-                createOption("Python", false)
-        ));
-
-        when(taskService.createNewTask(any(NewSingleChoiceDTO.class), eq(Type.SINGLE_CHOICE)))
-                .thenReturn(ResponseEntity.notFound().build());
-
-        mockMvc.perform(post("/task/new/singlechoice")
+        mockMvc.perform(post(TASK_NEW_SINGLE_CHOICE_ENDPOINT)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isNotFound());
-
-        verify(taskService, times(1)).createNewTask(any(NewSingleChoiceDTO.class), eq(Type.SINGLE_CHOICE));
-    }
-
-    @Test
-    void createNewTask__singleChoice_should_return_bad_request_when_order_sequence_invalid() throws Exception {
-        NewSingleChoiceDTO dto = new NewSingleChoiceDTO();
-        dto.setCourseId(1L);
-        dto.setStatement("O que aprendemos hoje?");
-        dto.setOrder(2);
-        dto.setOptions(List.of(
-                createOption("Java", true),
-                createOption("Python", false)
-        ));
-
-        when(taskService.createNewTask(any(NewSingleChoiceDTO.class), eq(Type.SINGLE_CHOICE)))
-                .thenReturn((ResponseEntity) ResponseEntity.badRequest().body(new ErrorItemDTO("order", "Invalid order sequence")));
-
-        mockMvc.perform(post("/task/new/singlechoice")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.field").value("order"));
-
-        verify(taskService, times(1)).createNewTask(any(NewSingleChoiceDTO.class), eq(Type.SINGLE_CHOICE));
-    }
-
-    @Test
-    void createNewTask__singleChoice_should_return_bad_request_when_options_invalid_size() throws Exception {
-        NewSingleChoiceDTO dto = new NewSingleChoiceDTO();
-        dto.setCourseId(1L);
-        dto.setStatement("O que aprendemos hoje?");
-        dto.setOrder(1);
-        dto.setOptions(List.of(createOption("Java", true))); // only 1 option
-
-        when(taskService.createNewTask(any(NewSingleChoiceDTO.class), eq(Type.SINGLE_CHOICE)))
-                .thenReturn((ResponseEntity) ResponseEntity.badRequest().body(new ErrorItemDTO("options", "Single choice must have between 2 and 5 options")));
-
-        mockMvc.perform(post("/task/new/singlechoice")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.field").value("options"));
-
-        verify(taskService, times(1)).createNewTask(any(NewSingleChoiceDTO.class), eq(Type.SINGLE_CHOICE));
-    }
-
-    @Test
-    void createNewTask__singleChoice_should_create_task_when_valid() throws Exception {
-        NewSingleChoiceDTO dto = new NewSingleChoiceDTO();
-        dto.setCourseId(1L);
-        dto.setStatement("O que aprendemos hoje?");
-        dto.setOrder(1);
-        dto.setOptions(Arrays.asList(
-                createOption("Java", true),
-                createOption("Python", false),
-                createOption("Ruby", false)
-        ));
-
-        when(taskService.createNewTask(any(NewSingleChoiceDTO.class), eq(Type.SINGLE_CHOICE)))
-                .thenReturn(ResponseEntity.status(201).build());
-
-        mockMvc.perform(post("/task/new/singlechoice")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(dto)))
+                        .content(objectMapper.writeValueAsString(sampleSingleChoiceDTO)))
                 .andExpect(status().isCreated());
 
         verify(taskService, times(1)).createNewTask(any(NewSingleChoiceDTO.class), eq(Type.SINGLE_CHOICE));
-    }
 
-    // -----------------------
-    // MultipleChoice tests
-    // -----------------------
-
-    @Test
-    void createNewTask__multipleChoice_should_return_not_found_when_course_missing() throws Exception {
-        NewMultipleChoiceDTO dto = new NewMultipleChoiceDTO();
-        dto.setCourseId(999L);
-        dto.setStatement("O que aprendemos hoje?");
-        dto.setOrder(1);
-        dto.setOptions(Arrays.asList(
-                createOption("Java", true),
-                createOption("Spring", true),
-                createOption("Ruby", false)
-        ));
-
-        when(taskService.createNewTask(any(NewMultipleChoiceDTO.class), eq(Type.MULTIPLE_CHOICE)))
-                .thenReturn(ResponseEntity.notFound().build());
-
-        mockMvc.perform(post("/task/new/multiplechoice")
+        mockMvc.perform(post(TASK_NEW_MULTIPLE_CHOICE_ENDPOINT)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isNotFound());
-
-        verify(taskService, times(1)).createNewTask(any(NewMultipleChoiceDTO.class), eq(Type.MULTIPLE_CHOICE));
-    }
-
-    @Test
-    void createNewTask__multipleChoice_should_return_bad_request_when_options_count_invalid() throws Exception {
-        NewMultipleChoiceDTO dto = new NewMultipleChoiceDTO();
-        dto.setCourseId(1L);
-        dto.setStatement("O que aprendemos hoje?");
-        dto.setOrder(1);
-        dto.setOptions(List.of(
-                createOption("Java", true),
-                createOption("Python", true) // only 2 options (needs min 3)
-        ));
-
-        when(taskService.createNewTask(any(NewMultipleChoiceDTO.class), eq(Type.MULTIPLE_CHOICE)))
-                .thenReturn((ResponseEntity) ResponseEntity.badRequest().body(new ErrorItemDTO("options", "Multiple choice must have between 3 and 5 options")));
-
-        mockMvc.perform(post("/task/new/multiplechoice")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.field").value("options"));
-
-        verify(taskService, times(1)).createNewTask(any(NewMultipleChoiceDTO.class), eq(Type.MULTIPLE_CHOICE));
-    }
-
-    @Test
-    void createNewTask__multipleChoice_should_return_bad_request_when_correctness_rules_violate() throws Exception {
-        NewMultipleChoiceDTO dto = new NewMultipleChoiceDTO();
-        dto.setCourseId(1L);
-        dto.setStatement("O que aprendemos hoje?");
-        dto.setOrder(1);
-        dto.setOptions(Arrays.asList(
-                createOption("Java", true),
-                createOption("Spring", true),
-                createOption("Kotlin", true)
-        ));
-
-        when(taskService.createNewTask(any(NewMultipleChoiceDTO.class), eq(Type.MULTIPLE_CHOICE)))
-                .thenReturn((ResponseEntity) ResponseEntity.badRequest().body(new ErrorItemDTO("options", "Multiple choice must have two or more correct options and at least one incorrect option")));
-
-        mockMvc.perform(post("/task/new/multiplechoice")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.field").value("options"));
-
-        verify(taskService, times(1)).createNewTask(any(NewMultipleChoiceDTO.class), eq(Type.MULTIPLE_CHOICE));
-    }
-
-    @Test
-    void createNewTask__multipleChoice_should_create_task_when_valid() throws Exception {
-        NewMultipleChoiceDTO dto = new NewMultipleChoiceDTO();
-        dto.setCourseId(1L);
-        dto.setStatement("O que aprendemos hoje?");
-        dto.setOrder(1);
-        dto.setOptions(Arrays.asList(
-                createOption("Java", true),
-                createOption("Spring", true),
-                createOption("Ruby", false)
-        ));
-
-        when(taskService.createNewTask(any(NewMultipleChoiceDTO.class), eq(Type.MULTIPLE_CHOICE)))
-                .thenReturn(ResponseEntity.status(201).build());
-
-        mockMvc.perform(post("/task/new/multiplechoice")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(dto)))
+                        .content(objectMapper.writeValueAsString(sampleMultipleChoiceDTO)))
                 .andExpect(status().isCreated());
 
         verify(taskService, times(1)).createNewTask(any(NewMultipleChoiceDTO.class), eq(Type.MULTIPLE_CHOICE));
-    }
-
-    // helper
-    private OptionDTO createOption(String text, boolean isCorrect) {
-        OptionDTO o = new OptionDTO();
-        o.setOption(text);
-        o.setIsCorrect(isCorrect);
-        return o;
     }
 }
