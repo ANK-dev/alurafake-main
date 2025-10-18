@@ -24,7 +24,7 @@ public class TaskListItemDTO implements Serializable {
         this.type = task.getType();
         this.options = task.getOptions().stream()
                 .map(OptionListItemDTO::new)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     public Long getId() {

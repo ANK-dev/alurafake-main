@@ -21,17 +21,17 @@ public class TaskController {
     }
 
     @PostMapping("/task/new/opentext")
-    public ResponseEntity<?> newOpenTextExercise(@Valid @RequestBody NewOpenTextDTO dto) {
+    public ResponseEntity newOpenTextExercise(@Valid @RequestBody NewOpenTextDTO dto) {
         return taskService.createNewTask(dto, Type.OPEN_TEXT);
     }
 
     @PostMapping("/task/new/singlechoice")
-    public ResponseEntity<?> newSingleChoice(@Valid @RequestBody NewSingleChoiceDTO dto) {
+    public ResponseEntity newSingleChoice(@Valid @RequestBody NewSingleChoiceDTO dto) {
         return taskService.createNewTask(dto, Type.SINGLE_CHOICE);
     }
 
     @PostMapping("/task/new/multiplechoice")
-    public ResponseEntity<?> newMultipleChoice(@Valid @RequestBody NewMultipleChoiceDTO dto) {
+    public ResponseEntity newMultipleChoice(@Valid @RequestBody NewMultipleChoiceDTO dto) {
         return taskService.createNewTask(dto, Type.MULTIPLE_CHOICE);
     }
 }

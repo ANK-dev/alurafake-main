@@ -25,7 +25,7 @@ public class TaskService {
     }
 
     @Transactional
-    public <T extends NewTaskDTO> ResponseEntity<?> createNewTask(T dto, Type type) {
+    public <T extends NewTaskDTO> ResponseEntity createNewTask(T dto, Type type) {
         ResponseEntity<?> fieldsNullErr = validateFieldsNotNullOrEmpty(dto, type);
         if (fieldsNullErr != null) {
             return fieldsNullErr;
@@ -101,11 +101,7 @@ public class TaskService {
         }
 
         if (!nullFields.isEmpty()) {
-            if (nullFields.size() == 1) {
-                return ResponseEntity.badRequest().body(nullFields.getFirst());
-            }
-
-            return ResponseEntity.badRequest().body(nullFields);
+            return ResponseEntity.badRequest().body(nullFields.size() == 1 ? nullFields.getFirst() : nullFields);
         }
 
         return null;
@@ -157,17 +153,12 @@ public class TaskService {
         return null;
     }
 
-    private ResponseEntity<?> validateOptions(List<OptionDTO> options, String statement, Type type) {
+    private ResponseEntity validateOptions(List<OptionDTO> options, String statement, Type type) {
         boolean singleChoice = Type.SINGLE_CHOICE.equals(type);
-        int min = singleChoice ? 2 : 3;
-        int max = 5;
-        if (options.size() < min || options.size() > max) {
-            return ResponseEntity.badRequest().body(new ErrorItemDTO(
-                    "options",
-                    singleChoice
-                            ? "Single choice must have between 2 and 5 options"
-                            : "Multiple choice must have between 3 and 5 options"
-            ));
+
+        ResponseEntity optionSizeErr = validateNumberOfOptions(options.size(), singleChoice);
+        if (optionSizeErr != null) {
+            return optionSizeErr;
         }
 
         int correctCount = 0;
@@ -182,6 +173,7 @@ public class TaskService {
                         "Option text must not be null"
                 ));
             }
+
             String optionTrimmedLowercase = option.trim().toLowerCase();
 
             if (optionTrimmedLowercase.length() < 4 || optionTrimmedLowercase.length() > 80) {
@@ -207,20 +199,40 @@ public class TaskService {
             }
         }
 
-        if (singleChoice) {
-            if (correctCount != 1) {
-                return ResponseEntity.badRequest().body(new ErrorItemDTO(
-                        "options",
-                        "Single choice must have exactly one correct option"
-                ));
-            }
-        } else {
-            if (correctCount < 2 || correctCount >= options.size()) {
-                return ResponseEntity.badRequest().body(new ErrorItemDTO(
-                        "options",
-                        "Multiple choice must have two or more correct options and at least one incorrect option"
-                ));
-            }
+        ResponseEntity optionCorrectCountErr = validateOptionCorrectCount(options.size(), correctCount, singleChoice);
+        if (optionCorrectCountErr != null) {
+            return optionCorrectCountErr;
+        }
+
+        return null;
+    }
+
+    private ResponseEntity validateNumberOfOptions(int numOptions, boolean singleChoice) {
+        int min = singleChoice ? 2 : 3;
+        int max = 5;
+
+        if (numOptions < min || numOptions > max) {
+            String message = singleChoice
+                    ? "Single choice must have between 2 and 5 options"
+                    : "Multiple choice must have between 3 and 5 options";
+
+            return ResponseEntity.badRequest().body(new ErrorItemDTO("options", message));
+        }
+
+        return null;
+    }
+
+    private ResponseEntity validateOptionCorrectCount(int numOptions, int correctCount, boolean singleChoice) {
+        if (singleChoice && correctCount != 1) {
+            return ResponseEntity.badRequest().body(new ErrorItemDTO(
+                    "options",
+                    "Single choice must have exactly one correct option"
+            ));
+        } else if (!singleChoice && correctCount < 2 || correctCount >= numOptions) {
+            return ResponseEntity.badRequest().body(new ErrorItemDTO(
+                    "options",
+                    "Multiple choice must have two or more correct options and at least one incorrect option"
+            ));
         }
 
         return null;
