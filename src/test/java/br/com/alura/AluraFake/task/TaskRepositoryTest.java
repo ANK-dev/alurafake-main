@@ -12,11 +12,11 @@ import org.springframework.test.context.ActiveProfiles;
 
 import java.util.List;
 
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest
 @ActiveProfiles("test")
-public class TaskRepositoryTest {
+class TaskRepositoryTest {
 
     @Autowired
     private TaskRepository taskRepository;
@@ -85,7 +85,7 @@ public class TaskRepositoryTest {
 
         List<Task> tasks = taskRepository.findByCourseIdOrderByOrderIndexAsc(course.getId());
 
-        assertThat(tasks.size()).isEqualTo(3);
+        assertThat(tasks).hasSize(3);
         assertThat(tasks.get(0).getOrderIndex()).isEqualTo(1);
         assertThat(tasks.get(0).getStatement()).isEqualTo("Java Task 1");
         assertThat(tasks.get(1).getOrderIndex()).isEqualTo(2);
@@ -116,7 +116,7 @@ public class TaskRepositoryTest {
         assertThat(rowsChanged).isEqualTo(3);
 
         List<Task> updatedTasks = taskRepository.findByCourseIdOrderByOrderIndexAsc(course.getId());
-        assertThat(updatedTasks.size()).isEqualTo(4);
+        assertThat(updatedTasks).hasSize(4);
         assertThat(updatedTasks.get(0).getOrderIndex()).isEqualTo(1);
         assertThat(updatedTasks.get(1).getOrderIndex()).isEqualTo(3);
         assertThat(updatedTasks.get(2).getOrderIndex()).isEqualTo(4);

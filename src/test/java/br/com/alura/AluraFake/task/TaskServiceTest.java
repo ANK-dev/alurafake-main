@@ -77,7 +77,7 @@ class TaskServiceTest {
 
         sampleCourse = new Course(
                 "Java",
-                "desc",
+                "Curso de Java",
                 new User("Paulo", "paulo@alura.com.br", Role.INSTRUCTOR)
         );
     }
@@ -98,21 +98,28 @@ class TaskServiceTest {
             when(courseRepository.findById(1L)).thenReturn(Optional.of(sampleCourse));
 
             String expectedField = "statement";
+            String expectedMessage = "Statement must be between 4 and 255 characters";
 
             ResponseEntity<?> openTextResponse = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
             assertEquals(HttpStatus.BAD_REQUEST, openTextResponse.getStatusCode());
             assertNotNull(openTextResponse.getBody());
-            assertEquals(expectedField, ((ErrorItemDTO) openTextResponse.getBody()).getField());
+            ErrorItemDTO openTextResponseBody = (ErrorItemDTO) openTextResponse.getBody();
+            assertEquals(expectedField, openTextResponseBody.getField());
+            assertEquals(expectedMessage, openTextResponseBody.getMessage());
 
             ResponseEntity<?> singleChoiceResponse = taskService.createNewTask(sampleSingleChoiceDTO, Type.SINGLE_CHOICE);
             assertEquals(HttpStatus.BAD_REQUEST, singleChoiceResponse.getStatusCode());
             assertNotNull(singleChoiceResponse.getBody());
-            assertEquals(expectedField, ((ErrorItemDTO) singleChoiceResponse.getBody()).getField());
+            ErrorItemDTO singleChoiceResponseBody = (ErrorItemDTO) singleChoiceResponse.getBody();
+            assertEquals(expectedField, singleChoiceResponseBody.getField());
+            assertEquals(expectedMessage, singleChoiceResponseBody.getMessage());
 
             ResponseEntity<?> multipleChoiceResponse = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
             assertEquals(HttpStatus.BAD_REQUEST, multipleChoiceResponse.getStatusCode());
             assertNotNull(multipleChoiceResponse.getBody());
-            assertEquals(expectedField, ((ErrorItemDTO) multipleChoiceResponse.getBody()).getField());
+            ErrorItemDTO multipleChoiceResponseBody = (ErrorItemDTO) singleChoiceResponse.getBody();
+            assertEquals(expectedField, multipleChoiceResponseBody.getField());
+            assertEquals(expectedMessage, multipleChoiceResponseBody.getMessage());
 
             verify(taskRepository, never()).save(any());
         }
@@ -131,14 +138,14 @@ class TaskServiceTest {
             when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleSingleChoiceDTO.getStatement())).thenReturn(false);
             when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleMultipleChoiceDTO.getStatement())).thenReturn(false);
 
-            ResponseEntity<?> responseOpenText = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
-            assertEquals(HttpStatus.CREATED, responseOpenText.getStatusCode());
+            ResponseEntity<?> openTextResponse = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
+            assertEquals(HttpStatus.CREATED, openTextResponse.getStatusCode());
 
-            ResponseEntity<?> responseSingleChoice = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
-            assertEquals(HttpStatus.CREATED, responseSingleChoice.getStatusCode());
+            ResponseEntity<?> singleChoiceResponse = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
+            assertEquals(HttpStatus.CREATED, singleChoiceResponse.getStatusCode());
 
-            ResponseEntity<?> responseMultipleChoice = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
-            assertEquals(HttpStatus.CREATED, responseMultipleChoice.getStatusCode());
+            ResponseEntity<?> multipleChoiceResponse = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
+            assertEquals(HttpStatus.CREATED, multipleChoiceResponse.getStatusCode());
 
             verify(taskRepository, times(3)).save(any(Task.class));
         }
@@ -153,21 +160,31 @@ class TaskServiceTest {
             when(courseRepository.findById(1L)).thenReturn(Optional.of(sampleCourse));
 
             String expectedField = "statement";
+            String expectedMessage = "Statement must be between 4 and 255 characters";
 
             ResponseEntity<?> openTextResponse = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
+
             assertEquals(HttpStatus.BAD_REQUEST, openTextResponse.getStatusCode());
             assertNotNull(openTextResponse.getBody());
-            assertEquals(expectedField, ((ErrorItemDTO) openTextResponse.getBody()).getField());
+            ErrorItemDTO openTextResponseBody = (ErrorItemDTO) openTextResponse.getBody();
+            assertEquals(expectedField, openTextResponseBody.getField());
+            assertEquals(expectedMessage, openTextResponseBody.getMessage());
 
             ResponseEntity<?> singleChoiceResponse = taskService.createNewTask(sampleSingleChoiceDTO, Type.SINGLE_CHOICE);
+
             assertEquals(HttpStatus.BAD_REQUEST, singleChoiceResponse.getStatusCode());
             assertNotNull(singleChoiceResponse.getBody());
-            assertEquals(expectedField, ((ErrorItemDTO) singleChoiceResponse.getBody()).getField());
+            ErrorItemDTO singleChoiceResponseBody = (ErrorItemDTO) singleChoiceResponse.getBody();
+            assertEquals(expectedField, singleChoiceResponseBody.getField());
+            assertEquals(expectedMessage, singleChoiceResponseBody.getMessage());
 
             ResponseEntity<?> multipleChoiceResponse = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+
             assertEquals(HttpStatus.BAD_REQUEST, multipleChoiceResponse.getStatusCode());
             assertNotNull(multipleChoiceResponse.getBody());
-            assertEquals(expectedField, ((ErrorItemDTO) multipleChoiceResponse.getBody()).getField());
+            ErrorItemDTO multipleChoiceResponseBody = (ErrorItemDTO) singleChoiceResponse.getBody();
+            assertEquals(expectedField, multipleChoiceResponseBody.getField());
+            assertEquals(expectedMessage, multipleChoiceResponseBody.getMessage());
 
             verify(taskRepository, never()).save(any());
         }
@@ -186,14 +203,14 @@ class TaskServiceTest {
             when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleSingleChoiceDTO.getStatement())).thenReturn(false);
             when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleMultipleChoiceDTO.getStatement())).thenReturn(false);
 
-            ResponseEntity<?> responseOpenText = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
-            assertEquals(HttpStatus.CREATED, responseOpenText.getStatusCode());
+            ResponseEntity<?> openTextResponse = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
+            assertEquals(HttpStatus.CREATED, openTextResponse.getStatusCode());
 
-            ResponseEntity<?> responseSingleChoice = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
-            assertEquals(HttpStatus.CREATED, responseSingleChoice.getStatusCode());
+            ResponseEntity<?> singleChoiceResponse = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
+            assertEquals(HttpStatus.CREATED, singleChoiceResponse.getStatusCode());
 
-            ResponseEntity<?> responseMultipleChoice = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
-            assertEquals(HttpStatus.CREATED, responseMultipleChoice.getStatusCode());
+            ResponseEntity<?> multipleChoiceResponse = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
+            assertEquals(HttpStatus.CREATED, multipleChoiceResponse.getStatusCode());
 
             verify(taskRepository, times(3)).save(any(Task.class));
         }
@@ -211,21 +228,31 @@ class TaskServiceTest {
             when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleMultipleChoiceDTO.getStatement())).thenReturn(true);
 
             String expectedField = "statement";
+            String expectedMessage = "Statement already exists in this course";
 
             ResponseEntity<?> openTextResponse = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
+
             assertEquals(HttpStatus.BAD_REQUEST, openTextResponse.getStatusCode());
             assertNotNull(openTextResponse.getBody());
-            assertEquals(expectedField, ((ErrorItemDTO) openTextResponse.getBody()).getField());
+            ErrorItemDTO openTextResponseBody = (ErrorItemDTO) openTextResponse.getBody();
+            assertEquals(expectedField, openTextResponseBody.getField());
+            assertEquals(expectedMessage, openTextResponseBody.getMessage());
 
             ResponseEntity<?> singleChoiceResponse = taskService.createNewTask(sampleSingleChoiceDTO, Type.SINGLE_CHOICE);
+
             assertEquals(HttpStatus.BAD_REQUEST, singleChoiceResponse.getStatusCode());
             assertNotNull(singleChoiceResponse.getBody());
-            assertEquals(expectedField, ((ErrorItemDTO) singleChoiceResponse.getBody()).getField());
+            ErrorItemDTO singleChoiceResponseBody = (ErrorItemDTO) singleChoiceResponse.getBody();
+            assertEquals(expectedField, singleChoiceResponseBody.getField());
+            assertEquals(expectedMessage, singleChoiceResponseBody.getMessage());
 
             ResponseEntity<?> multipleChoiceResponse = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+
             assertEquals(HttpStatus.BAD_REQUEST, multipleChoiceResponse.getStatusCode());
             assertNotNull(multipleChoiceResponse.getBody());
-            assertEquals(expectedField, ((ErrorItemDTO) multipleChoiceResponse.getBody()).getField());
+            ErrorItemDTO multipleChoiceResponseBody = (ErrorItemDTO) singleChoiceResponse.getBody();
+            assertEquals(expectedField, multipleChoiceResponseBody.getField());
+            assertEquals(expectedMessage, multipleChoiceResponseBody.getMessage());
 
             verify(taskRepository, never()).save(any());
         }
@@ -243,21 +270,31 @@ class TaskServiceTest {
             when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleMultipleChoiceDTO.getStatement())).thenReturn(false);
 
             String expectedField = "order";
+            String expectedMessage = "Order must be a positive integer";
 
             ResponseEntity<?> openTextResponse = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
+
             assertEquals(HttpStatus.BAD_REQUEST, openTextResponse.getStatusCode());
             assertNotNull(openTextResponse.getBody());
-            assertEquals(expectedField, ((ErrorItemDTO) openTextResponse.getBody()).getField());
+            ErrorItemDTO openTextResponseBody = (ErrorItemDTO) openTextResponse.getBody();
+            assertEquals(expectedField, openTextResponseBody.getField());
+            assertEquals(expectedMessage, openTextResponseBody.getMessage());
 
             ResponseEntity<?> singleChoiceResponse = taskService.createNewTask(sampleSingleChoiceDTO, Type.SINGLE_CHOICE);
+
             assertEquals(HttpStatus.BAD_REQUEST, singleChoiceResponse.getStatusCode());
             assertNotNull(singleChoiceResponse.getBody());
-            assertEquals(expectedField, ((ErrorItemDTO) singleChoiceResponse.getBody()).getField());
+            ErrorItemDTO singleChoiceResponseBody = (ErrorItemDTO) singleChoiceResponse.getBody();
+            assertEquals(expectedField, singleChoiceResponseBody.getField());
+            assertEquals(expectedMessage, singleChoiceResponseBody.getMessage());
 
             ResponseEntity<?> multipleChoiceResponse = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+
             assertEquals(HttpStatus.BAD_REQUEST, multipleChoiceResponse.getStatusCode());
             assertNotNull(multipleChoiceResponse.getBody());
-            assertEquals(expectedField, ((ErrorItemDTO) multipleChoiceResponse.getBody()).getField());
+            ErrorItemDTO multipleChoiceResponseBody = (ErrorItemDTO) singleChoiceResponse.getBody();
+            assertEquals(expectedField, multipleChoiceResponseBody.getField());
+            assertEquals(expectedMessage, multipleChoiceResponseBody.getMessage());
 
             verify(taskRepository, never()).save(any());
         }
@@ -277,14 +314,14 @@ class TaskServiceTest {
             // Course already contains multiple tasks, insertion of the new task will cause a shift in the sequence
             when(taskRepository.countByCourseId(1L)).thenReturn(5);
 
-            ResponseEntity<?> responseOpenText = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
-            assertEquals(HttpStatus.CREATED, responseOpenText.getStatusCode());
+            ResponseEntity<?> openTextResponse = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
+            assertEquals(HttpStatus.CREATED, openTextResponse.getStatusCode());
 
-            ResponseEntity<?> responseSingleChoice = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
-            assertEquals(HttpStatus.CREATED, responseSingleChoice.getStatusCode());
+            ResponseEntity<?> singleChoiceResponse = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
+            assertEquals(HttpStatus.CREATED, singleChoiceResponse.getStatusCode());
 
-            ResponseEntity<?> responseMultipleChoice = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
-            assertEquals(HttpStatus.CREATED, responseMultipleChoice.getStatusCode());
+            ResponseEntity<?> multipleChoiceResponse = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
+            assertEquals(HttpStatus.CREATED, multipleChoiceResponse.getStatusCode());
 
             verify(taskRepository, times(3)).shiftOrders(1L, 3);
             verify(taskRepository, times(3)).save(any(Task.class));
@@ -305,14 +342,14 @@ class TaskServiceTest {
             // Course already contains multiple tasks, insertion of the new task will only append the sequence
             when(taskRepository.countByCourseId(1L)).thenReturn(2);
 
-            ResponseEntity<?> responseOpenText = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
-            assertEquals(HttpStatus.CREATED, responseOpenText.getStatusCode());
+            ResponseEntity<?> openTextResponse = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
+            assertEquals(HttpStatus.CREATED, openTextResponse.getStatusCode());
 
-            ResponseEntity<?> responseSingleChoice = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
-            assertEquals(HttpStatus.CREATED, responseSingleChoice.getStatusCode());
+            ResponseEntity<?> singleChoiceResponse = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
+            assertEquals(HttpStatus.CREATED, singleChoiceResponse.getStatusCode());
 
-            ResponseEntity<?> responseMultipleChoice = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
-            assertEquals(HttpStatus.CREATED, responseMultipleChoice.getStatusCode());
+            ResponseEntity<?> multipleChoiceResponse = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
+            assertEquals(HttpStatus.CREATED, multipleChoiceResponse.getStatusCode());
 
             verify(taskRepository, times(0)).shiftOrders(anyLong(), anyInt());
             verify(taskRepository, times(3)).save(any(Task.class));
@@ -328,21 +365,31 @@ class TaskServiceTest {
             when(taskRepository.countByCourseId(1L)).thenReturn(7);
 
             String expectedField = "order";
+            String expectedMessage = "Invalid order sequence";
 
-            ResponseEntity<?> responseOpenText = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
-            assertEquals(HttpStatus.BAD_REQUEST, responseOpenText.getStatusCode());
-            assertNotNull(responseOpenText.getBody());
-            assertEquals(expectedField, ((ErrorItemDTO) responseOpenText.getBody()).getField());
+            ResponseEntity<?> openTextResponse = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
 
-            ResponseEntity<?> responseSingleChoice = taskService.createNewTask(sampleSingleChoiceDTO, Type.SINGLE_CHOICE);
-            assertEquals(HttpStatus.BAD_REQUEST, responseSingleChoice.getStatusCode());
-            assertNotNull(responseSingleChoice.getBody());
-            assertEquals(expectedField, ((ErrorItemDTO) responseSingleChoice.getBody()).getField());
+            assertEquals(HttpStatus.BAD_REQUEST, openTextResponse.getStatusCode());
+            assertNotNull(openTextResponse.getBody());
+            ErrorItemDTO openTextResponseBody = (ErrorItemDTO) openTextResponse.getBody();
+            assertEquals(expectedField, openTextResponseBody.getField());
+            assertEquals(expectedMessage, openTextResponseBody.getMessage());
 
-            ResponseEntity<?> responseMultipleChoice = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
-            assertEquals(HttpStatus.BAD_REQUEST, responseMultipleChoice.getStatusCode());
-            assertNotNull(responseMultipleChoice.getBody());
-            assertEquals(expectedField, ((ErrorItemDTO) responseMultipleChoice.getBody()).getField());
+            ResponseEntity<?> singleChoiceResponse = taskService.createNewTask(sampleSingleChoiceDTO, Type.SINGLE_CHOICE);
+
+            assertEquals(HttpStatus.BAD_REQUEST, singleChoiceResponse.getStatusCode());
+            assertNotNull(singleChoiceResponse.getBody());
+            ErrorItemDTO singleChoiceResponseBody = (ErrorItemDTO) singleChoiceResponse.getBody();
+            assertEquals(expectedField, singleChoiceResponseBody.getField());
+            assertEquals(expectedMessage, singleChoiceResponseBody.getMessage());
+
+            ResponseEntity<?> multipleChoiceResponse = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+
+            assertEquals(HttpStatus.BAD_REQUEST, multipleChoiceResponse.getStatusCode());
+            assertNotNull(multipleChoiceResponse.getBody());
+            ErrorItemDTO multipleChoiceResponseBody = (ErrorItemDTO) singleChoiceResponse.getBody();
+            assertEquals(expectedField, multipleChoiceResponseBody.getField());
+            assertEquals(expectedMessage, multipleChoiceResponseBody.getMessage());
 
             verify(taskRepository, never()).save(any());
         }
@@ -354,21 +401,31 @@ class TaskServiceTest {
             when(courseRepository.findById(1L)).thenReturn(Optional.of(sampleCourse));
 
             String expectedField = "status";
+            String expectedMessage = "Course must be in BUILDING status to receive tasks";
 
             ResponseEntity<?> openTextResponse = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
+
             assertEquals(HttpStatus.BAD_REQUEST, openTextResponse.getStatusCode());
             assertNotNull(openTextResponse.getBody());
-            assertEquals(expectedField, ((ErrorItemDTO) openTextResponse.getBody()).getField());
+            ErrorItemDTO openTextResponseBody = (ErrorItemDTO) openTextResponse.getBody();
+            assertEquals(expectedField, openTextResponseBody.getField());
+            assertEquals(expectedMessage, openTextResponseBody.getMessage());
 
             ResponseEntity<?> singleChoiceResponse = taskService.createNewTask(sampleSingleChoiceDTO, Type.SINGLE_CHOICE);
+
             assertEquals(HttpStatus.BAD_REQUEST, singleChoiceResponse.getStatusCode());
             assertNotNull(singleChoiceResponse.getBody());
-            assertEquals(expectedField, ((ErrorItemDTO) singleChoiceResponse.getBody()).getField());
+            ErrorItemDTO singleChoiceResponseBody = (ErrorItemDTO) singleChoiceResponse.getBody();
+            assertEquals(expectedField, singleChoiceResponseBody.getField());
+            assertEquals(expectedMessage, singleChoiceResponseBody.getMessage());
 
             ResponseEntity<?> multipleChoiceResponse = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+
             assertEquals(HttpStatus.BAD_REQUEST, multipleChoiceResponse.getStatusCode());
             assertNotNull(multipleChoiceResponse.getBody());
-            assertEquals(expectedField, ((ErrorItemDTO) multipleChoiceResponse.getBody()).getField());
+            ErrorItemDTO multipleChoiceResponseBody = (ErrorItemDTO) singleChoiceResponse.getBody();
+            assertEquals(expectedField, multipleChoiceResponseBody.getField());
+            assertEquals(expectedMessage, multipleChoiceResponseBody.getMessage());
 
             verify(taskRepository, never()).save(any());
         }
@@ -394,6 +451,7 @@ class TaskServiceTest {
             Set<String> expectedFieldsChoice = Set.of("courseId", "statement", "order", "options");
 
             ResponseEntity<?> openTextResponse = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
+
             assertEquals(HttpStatus.BAD_REQUEST, openTextResponse.getStatusCode());
             assertNotNull(openTextResponse.getBody());
             Set<String> bodyFieldsOpenText = ((List<ErrorItemDTO>) openTextResponse.getBody()).stream()
@@ -402,6 +460,7 @@ class TaskServiceTest {
             assertTrue(bodyFieldsOpenText.containsAll(expectedFieldsOpenText));
 
             ResponseEntity<?> singleChoiceResponse = taskService.createNewTask(sampleSingleChoiceDTO, Type.SINGLE_CHOICE);
+
             assertEquals(HttpStatus.BAD_REQUEST, singleChoiceResponse.getStatusCode());
             assertNotNull(singleChoiceResponse.getBody());
             Set<String> bodyFieldsSingleChoice = ((List<ErrorItemDTO>) singleChoiceResponse.getBody()).stream()
@@ -410,12 +469,49 @@ class TaskServiceTest {
             assertTrue(bodyFieldsSingleChoice.containsAll(expectedFieldsChoice));
 
             ResponseEntity<?> multipleChoiceResponse = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+
             assertEquals(HttpStatus.BAD_REQUEST, multipleChoiceResponse.getStatusCode());
             assertNotNull(multipleChoiceResponse.getBody());
             Set<String> bodyFieldsMultipleChoice = ((List<ErrorItemDTO>) multipleChoiceResponse.getBody()).stream()
                     .map(ErrorItemDTO::getField)
                     .collect(Collectors.toSet());
             assertTrue(bodyFieldsMultipleChoice.containsAll(expectedFieldsChoice));
+
+            verify(taskRepository, never()).save(any());
+        }
+
+        @Test
+        void createNewTask__should_return_bad_request_when_field_null() {
+            sampleOpenTextDTO.setStatement(null);
+            sampleSingleChoiceDTO.setStatement(null);
+            sampleMultipleChoiceDTO.setStatement(null);
+
+            String expectedField = "statement";
+            String expectedMessage = "statement is required";
+
+            ResponseEntity<?> openTextResponse = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
+
+            assertEquals(HttpStatus.BAD_REQUEST, openTextResponse.getStatusCode());
+            assertNotNull(openTextResponse.getBody());
+            ErrorItemDTO openTextResponseBody = (ErrorItemDTO) openTextResponse.getBody();
+            assertEquals(expectedField, openTextResponseBody.getField());
+            assertEquals(expectedMessage, openTextResponseBody.getMessage());
+
+            ResponseEntity<?> singleChoiceResponse = taskService.createNewTask(sampleSingleChoiceDTO, Type.SINGLE_CHOICE);
+
+            assertEquals(HttpStatus.BAD_REQUEST, singleChoiceResponse.getStatusCode());
+            assertNotNull(singleChoiceResponse.getBody());
+            ErrorItemDTO singleChoiceResponseBody = (ErrorItemDTO) singleChoiceResponse.getBody();
+            assertEquals(expectedField, singleChoiceResponseBody.getField());
+            assertEquals(expectedMessage, singleChoiceResponseBody.getMessage());
+
+            ResponseEntity<?> multipleChoiceResponse = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+
+            assertEquals(HttpStatus.BAD_REQUEST, multipleChoiceResponse.getStatusCode());
+            assertNotNull(multipleChoiceResponse.getBody());
+            ErrorItemDTO multipleChoiceResponseBody = (ErrorItemDTO) multipleChoiceResponse.getBody();
+            assertEquals(expectedField, multipleChoiceResponseBody.getField());
+            assertEquals(expectedMessage, multipleChoiceResponseBody.getMessage());
 
             verify(taskRepository, never()).save(any());
         }
@@ -449,8 +545,9 @@ class TaskServiceTest {
             when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleOpenTextDTO.getStatement())).thenReturn(false);
             when(taskRepository.countByCourseId(1L)).thenReturn(0);
 
-            ResponseEntity<?> responseOpenText = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
-            assertEquals(HttpStatus.CREATED, responseOpenText.getStatusCode());
+            ResponseEntity<?> openTextResponse = taskService.createNewTask(sampleOpenTextDTO, Type.OPEN_TEXT);
+
+            assertEquals(HttpStatus.CREATED, openTextResponse.getStatusCode());
 
             verify(taskRepository, times(1)).save(any(Task.class));
         }
@@ -475,9 +572,12 @@ class TaskServiceTest {
             when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleSingleChoiceDTO.getStatement())).thenReturn(false);
 
             ResponseEntity<?> resp = taskService.createNewTask(sampleSingleChoiceDTO, Type.SINGLE_CHOICE);
+
             assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
             assertNotNull(resp.getBody());
-            assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
+            ErrorItemDTO body = (ErrorItemDTO) resp.getBody();
+            assertEquals("options", body.getField());
+            assertEquals("Single choice must have between 2 and 5 options", body.getMessage());
 
             verify(taskRepository, never()).save(any());
         }
@@ -496,6 +596,7 @@ class TaskServiceTest {
             when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleSingleChoiceDTO.getStatement())).thenReturn(false);
 
             ResponseEntity<?> resp = taskService.createNewTask(sampleSingleChoiceDTO, Type.SINGLE_CHOICE);
+
             assertEquals(HttpStatus.CREATED, resp.getStatusCode());
 
             verify(taskRepository, times(1)).save(any(Task.class));
@@ -519,9 +620,12 @@ class TaskServiceTest {
             when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleSingleChoiceDTO.getStatement())).thenReturn(false);
 
             ResponseEntity<?> resp = taskService.createNewTask(sampleSingleChoiceDTO, Type.SINGLE_CHOICE);
+
             assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
             assertNotNull(resp.getBody());
-            assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
+            ErrorItemDTO body = (ErrorItemDTO) resp.getBody();
+            assertEquals("options", body.getField());
+            assertEquals("Single choice must have between 2 and 5 options", body.getMessage());
 
             verify(taskRepository, never()).save(any());
         }
@@ -543,6 +647,7 @@ class TaskServiceTest {
             when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleSingleChoiceDTO.getStatement())).thenReturn(false);
 
             ResponseEntity<?> resp = taskService.createNewTask(sampleSingleChoiceDTO, Type.SINGLE_CHOICE);
+
             assertEquals(HttpStatus.CREATED, resp.getStatusCode());
 
             verify(taskRepository, times(1)).save(any(Task.class));
@@ -562,18 +667,22 @@ class TaskServiceTest {
             when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleSingleChoiceDTO.getStatement())).thenReturn(false);
 
             ResponseEntity<?> resp = taskService.createNewTask(sampleSingleChoiceDTO, Type.SINGLE_CHOICE);
+
             assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
             assertNotNull(resp.getBody());
-            assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
+            ErrorItemDTO body = (ErrorItemDTO) resp.getBody();
+            assertEquals("options", body.getField());
+            assertEquals("Single choice must have exactly one correct option", body.getMessage());
 
             verify(taskRepository, never()).save(any());
         }
 
         @Test
-        void createNewTask__singleChoice_should_return_bad_request_when_all_options_correct() {
+        void createNewTask__singleChoice_should_return_bad_request_when_multiple_options_correct() {
             List<OptionDTO> singleChoiceOptions = List.of(
                     new OptionDTO("Java", true),
-                    new OptionDTO("Python", true)
+                    new OptionDTO("Python", true),
+                    new OptionDTO("Ruby", false)
             );
 
             sampleSingleChoiceDTO.setOptions(singleChoiceOptions);
@@ -583,9 +692,12 @@ class TaskServiceTest {
             when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleSingleChoiceDTO.getStatement())).thenReturn(false);
 
             ResponseEntity<?> resp = taskService.createNewTask(sampleSingleChoiceDTO, Type.SINGLE_CHOICE);
+
             assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
             assertNotNull(resp.getBody());
-            assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
+            ErrorItemDTO body = (ErrorItemDTO) resp.getBody();
+            assertEquals("options", body.getField());
+            assertEquals("Single choice must have exactly one correct option", body.getMessage());
 
             verify(taskRepository, never()).save(any());
         }
@@ -606,9 +718,12 @@ class TaskServiceTest {
             when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleSingleChoiceDTO.getStatement())).thenReturn(false);
 
             ResponseEntity<?> resp = taskService.createNewTask(sampleSingleChoiceDTO, Type.SINGLE_CHOICE);
+
             assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
             assertNotNull(resp.getBody());
-            assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
+            ErrorItemDTO body = (ErrorItemDTO) resp.getBody();
+            assertEquals("options", body.getField());
+            assertEquals("Each option must have between 4 and 80 characters", body.getMessage());
 
             verify(taskRepository, never()).save(any());
         }
@@ -629,6 +744,7 @@ class TaskServiceTest {
             when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleSingleChoiceDTO.getStatement())).thenReturn(false);
 
             ResponseEntity<?> resp = taskService.createNewTask(sampleSingleChoiceDTO, Type.SINGLE_CHOICE);
+
             assertEquals(HttpStatus.CREATED, resp.getStatusCode());
 
             verify(taskRepository, times(1)).save(any(Task.class));
@@ -651,9 +767,12 @@ class TaskServiceTest {
             when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleSingleChoiceDTO.getStatement())).thenReturn(false);
 
             ResponseEntity<?> resp = taskService.createNewTask(sampleSingleChoiceDTO, Type.SINGLE_CHOICE);
+
             assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
             assertNotNull(resp.getBody());
-            assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
+            ErrorItemDTO body = (ErrorItemDTO) resp.getBody();
+            assertEquals("options", body.getField());
+            assertEquals("Each option must have between 4 and 80 characters", body.getMessage());
 
             verify(taskRepository, never()).save(any());
         }
@@ -675,6 +794,7 @@ class TaskServiceTest {
             when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleSingleChoiceDTO.getStatement())).thenReturn(false);
 
             ResponseEntity<?> resp = taskService.createNewTask(sampleSingleChoiceDTO, Type.SINGLE_CHOICE);
+
             assertEquals(HttpStatus.CREATED, resp.getStatusCode());
 
             verify(taskRepository, times(1)).save(any(Task.class));
@@ -694,9 +814,12 @@ class TaskServiceTest {
             when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleSingleChoiceDTO.getStatement())).thenReturn(false);
 
             ResponseEntity<?> resp = taskService.createNewTask(sampleSingleChoiceDTO, Type.SINGLE_CHOICE);
+
             assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
             assertNotNull(resp.getBody());
-            assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
+            ErrorItemDTO body = (ErrorItemDTO) resp.getBody();
+            assertEquals("options", body.getField());
+            assertEquals("Options must be unique", body.getMessage());
 
             verify(taskRepository, never()).save(any());
         }
@@ -717,9 +840,12 @@ class TaskServiceTest {
             when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleSingleChoiceDTO.getStatement())).thenReturn(false);
 
             ResponseEntity<?> resp = taskService.createNewTask(sampleSingleChoiceDTO, Type.SINGLE_CHOICE);
+
             assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
             assertNotNull(resp.getBody());
-            assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
+            ErrorItemDTO body = (ErrorItemDTO) resp.getBody();
+            assertEquals("options", body.getField());
+            assertEquals("Options must not be equal to the statement", body.getMessage());
 
             verify(taskRepository, never()).save(any());
         }
@@ -741,9 +867,12 @@ class TaskServiceTest {
             when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleSingleChoiceDTO.getStatement())).thenReturn(false);
 
             ResponseEntity<?> resp = taskService.createNewTask(sampleSingleChoiceDTO, Type.SINGLE_CHOICE);
+
             assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
             assertNotNull(resp.getBody());
-            assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
+            ErrorItemDTO body = (ErrorItemDTO) resp.getBody();
+            assertEquals("options", body.getField());
+            assertEquals("Option text must not be null", body.getMessage());
 
             verify(taskRepository, never()).save(any());
         }
@@ -755,6 +884,7 @@ class TaskServiceTest {
             when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleSingleChoiceDTO.getStatement())).thenReturn(false);
 
             ResponseEntity<?> resp = taskService.createNewTask(sampleSingleChoiceDTO, Type.SINGLE_CHOICE);
+
             assertEquals(HttpStatus.CREATED, resp.getStatusCode());
 
             verify(taskRepository, times(1)).save(any(Task.class));
@@ -781,9 +911,12 @@ class TaskServiceTest {
             when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleMultipleChoiceDTO.getStatement())).thenReturn(false);
 
             ResponseEntity<?> resp = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+
             assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
             assertNotNull(resp.getBody());
-            assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
+            ErrorItemDTO body = (ErrorItemDTO) resp.getBody();
+            assertEquals("options", body.getField());
+            assertEquals("Multiple choice must have between 3 and 5 options", body.getMessage());
 
             verify(taskRepository, never()).save(any());
         }
@@ -803,6 +936,7 @@ class TaskServiceTest {
             when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleMultipleChoiceDTO.getStatement())).thenReturn(false);
 
             ResponseEntity<?> resp = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+
             assertEquals(HttpStatus.CREATED, resp.getStatusCode());
 
             verify(taskRepository, times(1)).save(any(Task.class));
@@ -826,9 +960,12 @@ class TaskServiceTest {
             when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleMultipleChoiceDTO.getStatement())).thenReturn(false);
 
             ResponseEntity<?> resp = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+
             assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
             assertNotNull(resp.getBody());
-            assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
+            ErrorItemDTO body = (ErrorItemDTO) resp.getBody();
+            assertEquals("options", body.getField());
+            assertEquals("Multiple choice must have between 3 and 5 options", body.getMessage());
 
             verify(taskRepository, never()).save(any());
         }
@@ -850,6 +987,7 @@ class TaskServiceTest {
             when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleMultipleChoiceDTO.getStatement())).thenReturn(false);
 
             ResponseEntity<?> resp = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+
             assertEquals(HttpStatus.CREATED, resp.getStatusCode());
 
             verify(taskRepository, times(1)).save(any(Task.class));
@@ -872,9 +1010,12 @@ class TaskServiceTest {
             when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleMultipleChoiceDTO.getStatement())).thenReturn(false);
 
             ResponseEntity<?> resp = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+
             assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
             assertNotNull(resp.getBody());
-            assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
+            ErrorItemDTO body = (ErrorItemDTO) resp.getBody();
+            assertEquals("options", body.getField());
+            assertEquals("Multiple choice must have two or more correct options and at least one incorrect option", body.getMessage());
 
             verify(taskRepository, never()).save(any());
         }
@@ -896,6 +1037,7 @@ class TaskServiceTest {
             when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleMultipleChoiceDTO.getStatement())).thenReturn(false);
 
             ResponseEntity<?> resp = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+
             assertEquals(HttpStatus.CREATED, resp.getStatusCode());
 
             verify(taskRepository, times(1)).save(any(Task.class));
@@ -918,9 +1060,12 @@ class TaskServiceTest {
             when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleMultipleChoiceDTO.getStatement())).thenReturn(false);
 
             ResponseEntity<?> resp = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+
             assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
             assertNotNull(resp.getBody());
-            assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
+            ErrorItemDTO body = (ErrorItemDTO) resp.getBody();
+            assertEquals("options", body.getField());
+            assertEquals("Multiple choice must have two or more correct options and at least one incorrect option", body.getMessage());
 
             verify(taskRepository, never()).save(any());
         }
@@ -942,6 +1087,7 @@ class TaskServiceTest {
             when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleMultipleChoiceDTO.getStatement())).thenReturn(false);
 
             ResponseEntity<?> resp = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+
             assertEquals(HttpStatus.CREATED, resp.getStatusCode());
 
             verify(taskRepository, times(1)).save(any(Task.class));
@@ -964,9 +1110,12 @@ class TaskServiceTest {
             when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleMultipleChoiceDTO.getStatement())).thenReturn(false);
 
             ResponseEntity<?> resp = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+
             assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
             assertNotNull(resp.getBody());
-            assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
+            ErrorItemDTO body = (ErrorItemDTO) resp.getBody();
+            assertEquals("options", body.getField());
+            assertEquals("Each option must have between 4 and 80 characters", body.getMessage());
 
             verify(taskRepository, never()).save(any());
         }
@@ -987,6 +1136,7 @@ class TaskServiceTest {
             when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleMultipleChoiceDTO.getStatement())).thenReturn(false);
 
             ResponseEntity<?> resp = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+
             assertEquals(HttpStatus.CREATED, resp.getStatusCode());
 
             verify(taskRepository, times(1)).save(any(Task.class));
@@ -1013,9 +1163,12 @@ class TaskServiceTest {
             when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleMultipleChoiceDTO.getStatement())).thenReturn(false);
 
             ResponseEntity<?> resp = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+
             assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
             assertNotNull(resp.getBody());
-            assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
+            ErrorItemDTO body = (ErrorItemDTO) resp.getBody();
+            assertEquals("options", body.getField());
+            assertEquals("Each option must have between 4 and 80 characters", body.getMessage());
 
             verify(taskRepository, never()).save(any());
         }
@@ -1041,6 +1194,7 @@ class TaskServiceTest {
             when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleMultipleChoiceDTO.getStatement())).thenReturn(false);
 
             ResponseEntity<?> resp = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+
             assertEquals(HttpStatus.CREATED, resp.getStatusCode());
 
             verify(taskRepository, times(1)).save(any(Task.class));
@@ -1062,9 +1216,12 @@ class TaskServiceTest {
             when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleMultipleChoiceDTO.getStatement())).thenReturn(false);
 
             ResponseEntity<?> resp = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+
             assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
             assertNotNull(resp.getBody());
-            assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
+            ErrorItemDTO body = (ErrorItemDTO) resp.getBody();
+            assertEquals("options", body.getField());
+            assertEquals("Options must be unique", body.getMessage());
 
             verify(taskRepository, never()).save(any());
         }
@@ -1087,9 +1244,12 @@ class TaskServiceTest {
             when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleMultipleChoiceDTO.getStatement())).thenReturn(false);
 
             ResponseEntity<?> resp = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+
             assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
             assertNotNull(resp.getBody());
-            assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
+            ErrorItemDTO body = (ErrorItemDTO) resp.getBody();
+            assertEquals("options", body.getField());
+            assertEquals("Multiple choice must have two or more correct options and at least one incorrect option", body.getMessage());
 
             verify(taskRepository, never()).save(any());
         }
@@ -1111,9 +1271,12 @@ class TaskServiceTest {
             when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleMultipleChoiceDTO.getStatement())).thenReturn(false);
 
             ResponseEntity<?> resp = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+
             assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
             assertNotNull(resp.getBody());
-            assertEquals("options", ((ErrorItemDTO) resp.getBody()).getField());
+            ErrorItemDTO body = (ErrorItemDTO) resp.getBody();
+            assertEquals("options", body.getField());
+            assertEquals("Option text must not be null", body.getMessage());
 
             verify(taskRepository, never()).save(any());
         }
@@ -1125,6 +1288,7 @@ class TaskServiceTest {
             when(taskRepository.existsByCourseAndStatement(sampleCourse, sampleMultipleChoiceDTO.getStatement())).thenReturn(false);
 
             ResponseEntity<?> resp = taskService.createNewTask(sampleMultipleChoiceDTO, Type.MULTIPLE_CHOICE);
+
             assertEquals(HttpStatus.CREATED, resp.getStatusCode());
 
             verify(taskRepository, times(1)).save(any(Task.class));

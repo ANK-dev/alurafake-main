@@ -35,8 +35,6 @@ class CourseControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    private static final String COURSE_NEW_ENDPOINT = "/course/new";
-    private static final String COURSE_ALL_ENDPOINT = "/course/all";
     private static final String COURSE_PUBLISH_ENDPOINT = "/course/{id}/publish";
     private static final String COURSE_TASKS_ENDPOINT = "/course/{id}/tasks";
 
@@ -206,7 +204,7 @@ class CourseControllerTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.field").value("tasks"))
-                .andExpect(jsonPath("$.message").isNotEmpty());
+                .andExpect(jsonPath("$.message").value("No tasks are present"));
 
         verify(courseRepository, times(0)).save(any(Course.class));
     }
@@ -222,7 +220,7 @@ class CourseControllerTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.field").value("tasks"))
-                .andExpect(jsonPath("$.message").isNotEmpty());
+                .andExpect(jsonPath("$.message").value("At least 1 task of each type is required"));
 
         verify(courseRepository, times(0)).save(any(Course.class));
     }
@@ -238,7 +236,7 @@ class CourseControllerTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.field").value("tasks"))
-                .andExpect(jsonPath("$.message").isNotEmpty());
+                .andExpect(jsonPath("$.message").value("At least 3 tasks are required"));
 
         verify(courseRepository, times(0)).save(any(Course.class));
     }
@@ -276,7 +274,7 @@ class CourseControllerTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.field").value("order"))
-                .andExpect(jsonPath("$.message").isNotEmpty());
+                .andExpect(jsonPath("$.message").value("Order is not consecutive"));
 
         verify(courseRepository, times(0)).save(any(Course.class));
     }
@@ -292,7 +290,7 @@ class CourseControllerTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.field").value("status"))
-                .andExpect(jsonPath("$.message").isNotEmpty());
+                .andExpect(jsonPath("$.message").value("Status is not BUILDING"));
 
         verify(courseRepository, times(0)).save(any(Course.class));
     }
