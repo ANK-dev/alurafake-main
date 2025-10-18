@@ -10,7 +10,6 @@ import br.com.alura.AluraFake.user.UserRepository;
 import br.com.alura.AluraFake.util.ErrorItemDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
@@ -33,7 +32,6 @@ public class InstructorController {
         this.taskRepository = taskRepository;
     }
 
-    @Transactional
     @GetMapping("/instructor/{userId}/courses")
     public ResponseEntity instructorCourses(@PathVariable("userId") Long userId) {
         Optional<User> optionalUser = userRepository.findById(userId);
