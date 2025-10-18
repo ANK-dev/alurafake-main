@@ -50,7 +50,7 @@ public class CourseController {
     }
 
     @GetMapping("/course/all")
-    public ResponseEntity<List<CourseListItemDTO>> createCourse() {
+    public ResponseEntity<List<CourseListItemDTO>> listCourses() {
         List<CourseListItemDTO> courses = courseRepository.findAll().stream()
                 .map(CourseListItemDTO::new)
                 .toList();
@@ -58,7 +58,7 @@ public class CourseController {
     }
 
     @PostMapping("/course/{id}/publish")
-    public ResponseEntity createCourse(@PathVariable("id") Long id) {
+    public ResponseEntity publishCourse(@PathVariable("id") Long id) {
         Optional<Course> courseOptional = courseRepository.findById(id);
         if (courseOptional.isEmpty()) {
             return ResponseEntity.notFound().build();
@@ -69,7 +69,7 @@ public class CourseController {
                 .findByCourseIdOrderByOrderIndexAsc(id)
                 .stream()
                 .map(TaskListItemDTO::new)
-                .collect(Collectors.toList());
+                .toList();
 
         if (tasks.isEmpty()) {
             return ResponseEntity.badRequest().body(new ErrorItemDTO("tasks", "No tasks are present"));
@@ -113,7 +113,7 @@ public class CourseController {
                 .findByCourseIdOrderByOrderIndexAsc(id)
                 .stream()
                 .map(TaskListItemDTO::new)
-                .collect(Collectors.toList());
+                .toList();
 
         return ResponseEntity.ok(tasks);
     }
